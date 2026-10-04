@@ -1,293 +1,63 @@
 class_name GameManager
 extends Node
-## Owns game flow: intro -> playing (pause) -> quest complete -> villagers' ending.
-## Builds the world from the scenes, wires signals between world, hero, player and
-## HUD, runs the camera, and handles restart/pause. Restart reloads the scene.
+## Game flow: title -> prologue (outside the dungeon) -> 9 levels -> final lock ->
+## Demon Lord reveal -> kill phase -> ending. Each level is rebuilt from data.
+## Dying restarts the level instantly. R restarts the current level; Esc pauses.
 
-enum GS { INTRO, PLAYING, PAUSED, COMPLETE, TWIST, END }
+enum GS { TITLE, STORY, INTRO, PLAYING, DEAD, COMPLETE, PAUSED, ENDING }
 
-const WORLD_SCENE := preload("res://scenes/open_world.tscn")
 const HERO_SCENE := preload("res://scenes/hero.tscn")
-const PLAYER_SCENE := preload("res://scenes/player.tscn")
-const NIGHT_TINT := Color(0.26, 0.32, 0.6)
+const NPC_SCENE := preload("res://scenes/npc.tscn")
+const HINT_PROMPT := "[H] hint"
+const HINT_SECONDS := 9.0
 
-const BLUNDER_TOASTS := {
-	"barrel": "The hero attacked a barrel. The barrel won.",
-	"slime": "The hero lost a fight to a slime.",
-	"sign": "The hero ignored a WET FLOOR sign. The floor won.",
-	"statue": "The hero tried to high-five a statue. The statue won.",
-	"chest": "The hero was bitten by a chest. The chest won.",
-	"lamp": "The hero dropped the Sacred Lamp on his own foot.",
-	"fell": "SPLASH! The stepping stones vanished (or never came). Keep it NIGHT until he's across.",
-	"fail": "The wrong item. Of course. He needs your guidance (Q to point).",
-	"mauled": "The werewolves got him! Switch to DAY (F) to burn them off.",
-}
-
-var gs := GS.INTRO
+var gs := GS.TITLE
+var levels: Array[Dictionary] = []
+var level_index := 0
+var data: Dictionary = {}
 var world: Node2D
-var tint: CanvasModulate
-var camera: Camera2D
-var light: LightController
-var daynight: DayNight
-var room: OpenWorld
+var level: Level
+var lamp_manager: LampManager
+var inversion: Inversion
 var hero: Hero
-var player: Player
+var npc: Npc
 var hud: Hud
-var blunders := 0
-var follow_player := true
-var twist_lines: Array[String] = []   # hero lines replayed in the ending (see TwistSequence)
+var audio: Audio
+var level_time := 0.0
+var deaths := 0                  # deaths on the current level
+var total_deaths := 0
+var results := {}                # level id -> {time, deaths, mastered}
+var kill_phase := false
+var debug_keys := true
+
+var _skip := false
+var hint_left := 0.0               # seconds the on-demand hint is still shown (press H)
+var _level_hint := ""
+var _f1_at := -100000          # for the debug chord F1 then 0
+var _token := 0                  # invalidates stale coroutines after a retry
+var _line_cd := 0.0
+var _credit_cd := 0.0
+var _npc_hazard_noted := false
+var _awaiting_continue := false
 
 func _ready() -> void:
-	process_mode = Node.PROCESS_MODE_ALWAYS   # we must keep running while paused
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_setup_input()
-
-	world = Node2D.new()
-	world.process_mode = Node.PROCESS_MODE_PAUSABLE
-	add_child(world)
-	tint = CanvasModulate.new()
-	world.add_child(tint)
-	light = LightController.new()
-	world.add_child(light)
-	daynight = DayNight.new()
-	world.add_child(daynight)
-
-	room = WORLD_SCENE.instantiate()
-	room.light = light
-	room.daynight = daynight
-	world.add_child(room)
-
-	hero = HERO_SCENE.instantiate()
-	hero.room = room
-	hero.light = light
-	hero.daynight = daynight
-	hero.guide = null   # set below once the player exists
-	hero.position = room.hero_start
-	world.add_child(hero)
-	room.hero = hero
-
-	player = PLAYER_SCENE.instantiate()
-	player.light = light
-	player.daynight = daynight
-	player.position = room.player_start
-	world.add_child(player)
-	hero.guide = player
-
-	camera = Camera2D.new()
-	camera.position = player.position
-	camera.limit_left = 0
-	camera.limit_top = 0
-	camera.limit_right = OpenWorld.COLS * OpenWorld.TILE
-	camera.limit_bottom = OpenWorld.ROWS * OpenWorld.TILE
-	camera.position_smoothing_enabled = true
-	camera.position_smoothing_speed = 6.0
-	world.add_child(camera)
-
+	levels = LevelData.playable()
 	hud = Hud.new()
 	add_child(hud)
+	audio = Audio.new()
+	add_child(audio)
+	_show_title()
 
-	room.message.connect(func(t: String) -> void: hud.toast(t, 4.5))
-	hero.milestone.connect(_on_milestone)
-	daynight.time_changed.connect(_on_time_changed)
-	room.ambush_cleared.connect(func() -> void: hud.toast("The werewolves burn away in the sunlight!", 3.5))
-	player.targets_changed.connect(_refresh_prompts)
-	for it in room.items:
-		it.pointed.connect(_on_pointed)
-	room.gate.pointed.connect(_on_pointed)
-	room.log_obstacle.pointed.connect(_on_pointed)
-
-	hud.set_objective("Guide the hero WITHOUT touching him. Lantern lures him; Q points; F flips day/night.")
-	_enter_intro()
-
-func _refresh_prompts() -> void:
-	hud.set_prompts(
-		player.target.get_prompt() if player.target != null else "",
-		player.point_target.get_prompt() if player.point_target != null else "")
-
-func _process(_delta: float) -> void:
-	tint.color = Color.WHITE.lerp(NIGHT_TINT, daynight.blend)
-	hud.set_lantern(light.lantern_on)
-	hud.set_time(daynight.is_night, daynight.cooldown_left())
-	hud.set_held(hero.held)
-	if follow_player:
-		camera.position = player.global_position
-	_track_hero()
-
-func _track_hero() -> void:
-	var xf := get_viewport().get_canvas_transform()
-	var sp: Vector2 = xf * hero.global_position
-	var vs := Vector2(Hud.W, Hud.H)
-	var rect := Rect2(0, 46, vs.x, vs.y - 72)
-	if rect.has_point(sp) or gs != GS.PLAYING:
-		hud.track_hero(false)
-		return
-	var c := vs * 0.5
-	var d := (sp - c).normalized()
-	var p := c
-	for i in 60:   # march from centre towards the hero until we leave the safe rect
-		var q := p + d * 8.0
-		if not rect.grow(-20).has_point(q):
-			break
-		p = q
-	hud.track_hero(true, p, d.angle())
-
-# ------------------------------------------------------------------ states
-
-func _enter_intro() -> void:
-	gs = GS.INTRO
-	player.active = false
-	hud.show_overlay(
-		"[center][font_size=40]THE NPC JOB[/font_size]\n\n" +
-		"You are the hero's [color=gold]imaginary guide[/color]. He wanders wherever he likes, grabs the wrong\n" +
-		"things, and often ignores you. You can't touch him. You can only change the world.\n\n" +
-		"[color=gold]SPACE[/color]  lantern on/off: lights hidden things and lures him ('Ooh, shiny!')\n" +
-		"[color=gold]E[/color]  interact: examine things, switch lampposts\n" +
-		"[color=gold]Q[/color]  point at items and obstacles (he may listen, or not)\n" +
-		"[color=gold]F[/color]  magic: flip DAY and NIGHT (night shows hidden things; day burns werewolves)\n" +
-		"[color=gold]WASD[/color] move     [color=gold]ESC[/color] pause     [color=gold]R[/color] restart\n\n" +
-		"Press [color=gold]E[/color] to begin[/center]")
-
-func _start_game() -> void:
-	gs = GS.PLAYING
-	hud.hide_overlay()
-	player.active = true
-	hero.begin()
-
-func _set_paused(on: bool) -> void:
-	get_tree().paused = on
-	gs = GS.PAUSED if on else GS.PLAYING
-	if on:
-		hud.show_overlay("[center][font_size=40]PAUSED[/font_size]\n\n[color=gold]ESC[/color] resume      [color=gold]R[/color] restart[/center]")
-	else:
-		hud.hide_overlay()
-
-func _restart() -> void:
-	get_tree().paused = false
-	get_tree().reload_current_scene()
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event.is_action_pressed("restart"):
-		_restart()
-		return
-	var confirm := event.is_action_pressed("interact") or event.is_action_pressed("confirm")
-	match gs:
-		GS.INTRO:
-			if confirm:
-				_start_game()
-		GS.PLAYING:
-			if event.is_action_pressed("pause"):
-				_set_paused(true)
-			elif event.is_action_pressed("magic"):
-				_cast_magic()
-			elif OS.is_debug_build() and event is InputEventKey and event.pressed and not event.echo:
-				_debug_key((event as InputEventKey).physical_keycode)
-		GS.PAUSED:
-			if event.is_action_pressed("pause"):
-				_set_paused(false)
-		GS.COMPLETE:
-			if confirm:
-				_play_twist()
-
-## Debug builds only (editor / debug export): F1-F4 warp the hero to a stage, F9 jumps to the ending.
-func _debug_key(key: int) -> void:
-	var stage := {KEY_F1: 0, KEY_F2: 1, KEY_F3: 2, KEY_F4: 3}.get(key, -1) as int
-	if stage >= 1:
-		room.gate.solve()
-	if stage >= 3:
-		room.log_obstacle.solve()
-	if stage >= 0:
-		hero.debug_warp(stage)
-		player.global_position = hero.global_position + Vector2(-60, 40)
-		hud.toast("DEBUG: hero warped to stage %d" % stage, 2.0)
-	elif key == KEY_F9:
-		hero.state = Hero.State.DONE
-		_complete()
-
-func _cast_magic() -> void:
-	if not daynight.toggle():
-		hud.toast("The magic is recharging...", 1.2)
-
-func _on_time_changed(is_night: bool) -> void:
-	if gs != GS.PLAYING:
-		return
-	if is_night:
-		hud.toast("NIGHT falls. Hidden things glimmer... and the river's stepping stones surface.", 4.0)
-	else:
-		hud.toast("DAY breaks. Night-things burn away in the sunlight.", 3.5)
-
-func _on_pointed(target: Node2D) -> void:
-	if gs != GS.PLAYING:
-		return
-	player.bubble.say("Over there, hero!", 1.6)
-	hero.hear_point(target)
-
-func _on_milestone(id: String) -> void:
-	if gs != GS.PLAYING:
-		return
-	if BLUNDER_TOASTS.has(id):
-		blunders += 1
-		hud.set_blunders(blunders)
-		hud.toast(BLUNDER_TOASTS[id], 3.5)
-	match id:
-		"at_gate":
-			hud.set_objective("The village gate is locked! Find the KEY (some things only show at night, F), then POINT at it (Q).")
-		"unlocked_gate":
-			hud.set_objective("He thinks the gate was his idea. Keep him moving east.")
-		"at_river":
-			hud.set_objective("He can't cross by day. Cast NIGHT (F) so the stepping stones surface. Keep it night until he's across!")
-		"crossed":
-			hud.set_objective("Across! Night brings werewolves. When they appear, switch to DAY (F) to burn them off.")
-		"wolves":
-			hud.set_objective("Werewolves gone. Head into the forest: a log blocks the road.")
-		"at_log":
-			hud.set_objective("A huge log! Find the AXE (a dark hollow, keep the lantern on) and POINT at it (Q).")
-		"unlocked_log":
-			hud.set_objective("The log is split. Guide him to the Sacred Lamp at the shrine.")
-		"lamp":
-			hud.set_objective("He dropped the lamp on his own foot. Just get him to the exit.")
-		"finished":
-			_complete()
-
-func _complete() -> void:
-	gs = GS.COMPLETE
-	player.active = false
-	await get_tree().create_timer(1.6).timeout
-	if gs != GS.COMPLETE:
-		return
-	hud.show_overlay(
-		"[center][font_size=40]QUEST COMPLETE![/font_size]\n\n" +
-		"The Chosen One has triumphed. (Somehow.)\n" +
-		"Blunders committed: " + str(blunders) + "\n" +
-		"He thanked his guide the whole way.\n\n" +
-		"Press [color=gold]E[/color] to hear what the villagers saw[/center]")
-
-func _play_twist() -> void:
-	gs = GS.TWIST
-	hud.hide_overlay()
-	hud.show_game_ui(false)
-	follow_player = false
-	var seq := TwistSequence.new()
-	add_child(seq)
-	twist_lines = seq.replayed
-	await seq.play(self)
-	gs = GS.END
-	hud.show_overlay(
-		"[center][font_size=40]THE NPC JOB[/font_size]\n\n" +
-		"The villagers saw a man talking to empty air.\n" +
-		"[color=gold]The guide who lit his way, pointed him to every key and axe,\n" +
-		"and held back the night, was never really there.[/color]\n" +
-		"He imagined you. Every instinct he thought was yours was his own.\n\n" +
-		"Thanks for playing this vertical slice!\n\n" +
-		"Press [color=gold]R[/color] to play again[/center]")
-
-# ------------------------------------------------------------------- input
+# ------------------------------------------------------------------ setup
 
 func _setup_input() -> void:
 	var binds := {
 		"move_left": [KEY_A, KEY_LEFT], "move_right": [KEY_D, KEY_RIGHT],
 		"move_up": [KEY_W, KEY_UP], "move_down": [KEY_S, KEY_DOWN],
-		"interact": [KEY_E], "point": [KEY_Q], "confirm": [KEY_ENTER, KEY_KP_ENTER],
-		"light": [KEY_SPACE], "magic": [KEY_F],
-		"pause": [KEY_ESCAPE, KEY_P], "restart": [KEY_R],
+		"interact": [KEY_E], "invert": [KEY_Q], "confirm": [KEY_ENTER, KEY_KP_ENTER],
+		"pause": [KEY_ESCAPE, KEY_P], "restart": [KEY_R], "mute": [KEY_M], "hint": [KEY_H],
 	}
 	for action: String in binds:
 		if not InputMap.has_action(action):
@@ -296,3 +66,456 @@ func _setup_input() -> void:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key as Key
 			InputMap.action_add_event(action, ev)
+
+## Build the world for one level definition.
+func _load_level(d: Dictionary) -> void:
+	data = d
+	level_time = 0.0
+	if world != null:
+		world.queue_free()
+	world = Node2D.new()
+	world.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(world)
+	lamp_manager = LampManager.new()
+	lamp_manager.global_mode = d.get("global", false)
+	world.add_child(lamp_manager)
+	inversion = Inversion.new()
+	inversion.manager = lamp_manager
+	inversion.unlocked = d.get("invert", false)
+	world.add_child(inversion)
+	level = Level.new()
+	level.setup(d, lamp_manager)
+	world.add_child(level)
+	hero = HERO_SCENE.instantiate()
+	hero.level = level
+	hero.lamps = lamp_manager
+	world.add_child(hero)
+	npc = NPC_SCENE.instantiate()
+	npc.lamps = lamp_manager
+	npc.inversion = inversion
+	world.add_child(npc)
+	await get_tree().process_frame   # let Level._ready() build the map
+	hero.place(level.hero_start)
+	npc.place(level.npc_start)
+	hero.died.connect(_on_hero_died)
+	hero.reached_exit.connect(_on_hero_exit)
+	hero.behavior_changed.connect(_on_behavior)
+	lamp_manager.lamp_switched.connect(_on_lamp_switched)
+	npc.target_changed.connect(_on_npc_target)
+	inversion.activated.connect(func() -> void: audio.play("invert_on"))
+	inversion.ended.connect(func() -> void: audio.play("invert_off"))
+	hud.set_prompt("")
+
+func _reset_level_state() -> void:
+	lamp_manager.reset_states()
+	inversion.reset()
+	level.reset()
+	hero.place(level.hero_start)
+	npc.place(level.npc_start)
+	level_time = 0.0
+
+# ------------------------------------------------------------------ helpers
+
+func _wait(seconds: float) -> void:
+	await get_tree().create_timer(seconds).timeout
+
+## One line of dialogue as a speech bubble. E skips.
+func _say(who: String, text: String, secs := -1.0) -> void:
+	var node: Node = hero if who == "H" else npc
+	if not is_instance_valid(node):
+		return
+	var dur := secs if secs > 0.0 else clampf(1.1 + text.length() * 0.05, 1.8, 5.5)
+	node.say(text, dur + 0.3)
+	audio.play("blip_h" if who == "H" else "blip_n")
+	var t := 0.0
+	_skip = false
+	while t < dur and not _skip and is_instance_valid(node):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	if is_instance_valid(node):
+		node.bubble.hush()
+
+func _say_all(lines: Array) -> void:
+	for l in lines:
+		await _say(l[0], l[1])
+
+func _walk(node: Node2D, to: Vector2, speed: float) -> void:
+	if node.has_method("face"):
+		node.face(to)
+	while is_instance_valid(node) and node.global_position.distance_to(to) > 2.0:
+		node.global_position = node.global_position.move_toward(to, speed * get_process_delta_time())
+		await get_tree().process_frame
+	if is_instance_valid(node):
+		node.global_position = to
+
+func _wait_continue() -> void:
+	_awaiting_continue = true
+	_skip = false
+	while not _skip:
+		await get_tree().process_frame
+	_awaiting_continue = false
+
+# -------------------------------------------------------------------- title
+
+func _show_title() -> void:
+	gs = GS.TITLE
+	hud.show_game_ui(false)
+	hud.show_overlay(
+		"[center][font_size=46]THE NPC JOB[/font_size]\n\n" +
+		"A clueless hero. A deadly dungeon.\n" +
+		"Colored lamps control his every step.\n\n" +
+		"[color=#3ee05a]GREEN[/color] comes to the lamp      [color=#f52e38]RED[/color] runs from it\n" +
+		"[color=#ff9e1a]ORANGE[/color] creeps toward it      [color=#478fff]BLUE[/color] freezes\n\n" +
+		"You are the NPC guide. Walk around, switch lamps, keep him alive.\n\n" +
+		"Press [color=gold]E[/color] to begin[/center]")
+
+func _start_game() -> void:
+	hud.hide_overlay()
+	audio.music("adventure")
+	gs = GS.STORY
+	await _play_prologue()
+	_begin_level(0)
+
+# ----------------------------------------------------------------- prologue
+
+func _play_prologue() -> void:
+	await _load_level(LevelData.by_id("prologue"))
+	hud.show_game_ui(false)
+	hud.letterbox(true, 0.4)
+	hero.place(level.cell_center(Vector2i(12, 8)))
+	npc.place(level.cell_center(Vector2i(2, 8)))
+	hero.mood = "happy"
+	await hud.fade_to(0.0, 0.01)
+	var lines: Array = Dialogue.PROLOGUE
+	await _say(lines[0][0], lines[0][1])
+	await _walk(npc, level.cell_center(Vector2i(9, 8)), 110.0)
+	for i in range(1, lines.size()):
+		hero.face(npc.global_position)
+		npc.face(hero.global_position)
+		await _say(lines[i][0], lines[i][1])
+	hud.letterbox(false, 0.4)
+	await _walk(npc, level.exit_pos + Vector2(-34, 0), 120.0)
+	_walk(hero, level.exit_pos + Vector2(-60, 0), 90.0)
+	await hud.fade_to(1.0, 0.7)
+
+# ------------------------------------------------------------------- levels
+
+func _begin_level(i: int) -> void:
+	level_index = i
+	kill_phase = false
+	await _load_level(levels[i])
+	deaths = 0
+	level_time = 0.0
+	_npc_hazard_noted = false
+	_intro_level(levels[i])
+
+func _intro_level(d: Dictionary) -> void:
+	gs = GS.INTRO
+	hero.mood = "normal"
+	hud.show_game_ui(true)
+	hud.set_level(d.num, d.title)
+	_level_hint = d.hint
+	hint_left = 0.0
+	hud.set_hint(HINT_PROMPT)
+	hud.set_timer(0.0, d.par)
+	hud.set_deaths(0)
+	hud.set_invert(false, false, 0.0, 0.0)
+	await hud.fade_to(0.0, 0.5)
+	hud.show_overlay("[center][font_size=34]LEVEL %d[/font_size]\n[font_size=44]%s[/font_size]\n\n%s[/center]" % [d.num, d.title, d.teach])
+	await _wait(1.8)
+	hud.hide_overlay()
+	var tok := _token
+	await _say_all(d.intro)
+	if tok != _token:
+		return
+	_begin_play()
+
+func _begin_play() -> void:
+	level.reset()   # the timed spikes' clock starts NOW (the moment the hero starts), not when the level loaded
+	gs = GS.PLAYING
+	hero.start()
+	npc.active = true
+
+func _retry() -> void:
+	_token += 1
+	hint_left = 0.0
+	_reset_level_state()
+	hud.hide_overlay()
+	hero.bubble.hush()
+	npc.bubble.hush()
+	gs = GS.INTRO
+	var tok := _token
+	await _wait(0.35)
+	if tok != _token:
+		return
+	_begin_play()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("mute"):
+		audio.toggle_mute()
+		return
+	if debug_keys and OS.is_debug_build() and event is InputEventKey and event.pressed and not event.echo:
+		if _debug_key((event as InputEventKey).physical_keycode):
+			return
+	var confirm := event.is_action_pressed("interact") or event.is_action_pressed("confirm")
+	if confirm:
+		_skip = true
+	match gs:
+		GS.TITLE:
+			if confirm:
+				_start_game()
+		GS.PLAYING, GS.DEAD:
+			if event.is_action_pressed("hint") and gs == GS.PLAYING:
+				hint_left = HINT_SECONDS
+				audio.play("blip_n")
+			elif event.is_action_pressed("restart") and not kill_phase:
+				_retry()
+			elif event.is_action_pressed("pause") and gs == GS.PLAYING:
+				_set_paused(true)
+		GS.PAUSED:
+			if event.is_action_pressed("pause"):
+				_set_paused(false)
+			elif event.is_action_pressed("restart"):
+				_set_paused(false)
+				_retry()
+		GS.ENDING:
+			if event.is_action_pressed("restart"):
+				get_tree().paused = false
+				get_tree().reload_current_scene()
+
+func _set_paused(on: bool) -> void:
+	get_tree().paused = on
+	gs = GS.PAUSED if on else GS.PLAYING
+	if on:
+		hud.show_overlay("[center][font_size=40]PAUSED[/font_size]\n\n[color=gold]Esc[/color] resume      [color=gold]R[/color] restart level[/center]")
+	else:
+		hud.hide_overlay()
+
+## Debug builds only (running from the editor), usable from ANY screen:
+##   1-9        jump to that level
+##   F1 then 0  jump straight to the finale: the Demon Lord's trial (hold F1 and press 0, or tap F1 then 0 within 3 s)
+## Returns true if the key was a debug command.
+func _debug_key(key: int) -> bool:
+	var now := Time.get_ticks_msec()
+	if key == KEY_F1:
+		_f1_at = now
+		return true
+	if key == KEY_0 and (Input.is_physical_key_pressed(KEY_F1) or now - _f1_at < 3000):
+		_f1_at = -100000
+		_debug_reset()
+		_begin_kill_debug()
+		return true
+	if key >= KEY_1 and key <= KEY_9:
+		_debug_reset()
+		_begin_level(key - KEY_1)
+		return true
+	return false
+
+## Drop whatever is happening (pause, overlays, cutscene coroutines) before a debug jump.
+func _debug_reset() -> void:
+	_token += 1
+	_skip = true
+	get_tree().paused = false
+	hud.hide_overlay()
+	hud.letterbox(false, 0.01)
+	hud.show_game_ui(true)
+	gs = GS.STORY
+
+func _begin_kill_debug() -> void:
+	# a jump straight into the final trial: the Demon Lord is already revealed
+	await _begin_kill()
+
+func _process(delta: float) -> void:
+	_line_cd = maxf(_line_cd - delta, 0.0)
+	_credit_cd = maxf(_credit_cd - delta, 0.0)
+	if gs == GS.PLAYING:
+		level_time += delta
+		if not kill_phase:
+			hud.set_timer(level_time, data.get("par", 0))
+	if gs == GS.PLAYING or gs == GS.DEAD:
+		hint_left = maxf(hint_left - delta, 0.0)
+		hud.set_hint(((_kill_hint() if kill_phase else _level_hint) if hint_left > 0.0 else HINT_PROMPT))
+	if gs == GS.PLAYING or gs == GS.INTRO or gs == GS.DEAD:
+		hud.set_invert(inversion.unlocked, inversion.active, inversion.remaining, inversion.cooldown)
+		hud.set_deaths(deaths)
+		_npc_hazard_check()
+
+# ----------------------------------------------------------------- reactions
+
+## Stage-by-stage advice for the final trial, based on what the hero is doing right now.
+func _kill_hint() -> String:
+	var gap_x := 13.0 * Level.TILE
+	var hp := hero.global_position
+	if hero.behavior == LampColors.C.RED:
+		if hp.y > 7.0 * Level.TILE:
+			return "RED is pushing him north. Keep it on until he is high up (rows near the top)."
+		return "He is high up. Switch RED off now: the chamber's green lamp is his nearest green."
+	if hp.x < gap_x:
+		return "He heads for the exit lamp (south-east). Run to the RED lamp (south) and switch it on once he is through the gap."
+	if hp.y < 7.0 * Level.TILE and hp.x < 23.0 * Level.TILE:
+		return "He is walking toward the chamber's lamp. Let him go in."
+	return "Greens pull, reds push, and he always obeys the NEAREST active lamp. The spike chamber is the only deadly place."
+
+func _on_behavior(color: int) -> void:
+	if gs == GS.PLAYING and color == LampColors.C.BLUE:
+		audio.play("freeze")
+	if gs != GS.PLAYING or _line_cd > 0.0 or randf() > 0.55:
+		return
+	var pool: Array = Dialogue.AMBIENT[color]
+	hero.say(pool[randi() % pool.size()], 2.0)
+	_line_cd = 4.0
+
+func _on_lamp_switched(lamp: Lamp) -> void:
+	audio.play("switch", [1.0, 0.84, 1.12, 1.26][lamp.original])
+	audio.play("on" if lamp.on else "off", 1.0, -6.0)
+	if gs == GS.PLAYING and _credit_cd <= 0.0 and randf() < 0.18 and _line_cd <= 0.0:
+		hero.say(Dialogue.CREDIT_GRAB[randi() % Dialogue.CREDIT_GRAB.size()], 2.2)
+		_credit_cd = 12.0
+		_line_cd = 3.0
+
+func _on_npc_target(lamp: Lamp) -> void:
+	if lamp == null:
+		hud.set_prompt("")
+	else:
+		var c := lamp.current_color()
+		hud.set_prompt("[E] Switch %s lamp %s" % [LampColors.label(lamp.original), "OFF" if lamp.on else "ON"])
+
+## Subtle foreshadowing: the NPC strolls over hazards without a scratch.
+func _npc_hazard_check() -> void:
+	if _npc_hazard_noted or gs != GS.PLAYING or level_index < 2 or kill_phase:
+		return
+	if level.hazard_at(npc.global_position) != "":
+		_npc_hazard_noted = true
+		npc.say("Light feet.", 2.0)
+		hero.say("How are you not dying?!", 2.2)
+
+func _on_hero_died(kind: String) -> void:
+	if gs != GS.PLAYING:
+		return
+	gs = GS.DEAD
+	npc.active = false
+	var tok := _token
+	audio.play("death_" + kind if kind in ["spike", "fire", "trap", "dragon"] else "death_spike")
+	hud.flash(Color(1, 0.1, 0.1))
+	if kill_phase:
+		_kill_success()
+		return
+	deaths += 1
+	total_deaths += 1
+	var pool: Array = Dialogue.DEATH.get(kind, ["Ow."])
+	hero.say(pool[randi() % pool.size()], 1.8)
+	await _wait(1.0)
+	if tok != _token:
+		return
+	if randf() < 0.5:
+		npc.say(Dialogue.NPC_DEATH[randi() % Dialogue.NPC_DEATH.size()], 1.4)
+	await _wait(0.9)
+	if tok != _token:
+		return
+	_retry()
+
+func _on_hero_exit() -> void:
+	if gs != GS.PLAYING:
+		return
+	if kill_phase:
+		_kill_escape()
+	elif data.get("exit_kind", "door") == "lock":
+		_final_sequence()
+	else:
+		_complete_level()
+
+func _complete_level() -> void:
+	gs = GS.COMPLETE
+	npc.active = false
+	hero.celebrate()
+	audio.play("win")
+	var mastered := level_time <= float(data.par)
+	results[data.id] = {"time": level_time, "deaths": deaths, "mastered": mastered}
+	await _say("H", Dialogue.CLEAR[randi() % Dialogue.CLEAR.size()], 1.8)
+	await _say_all(data.outro)
+	hud.show_overlay(
+		"[center][font_size=38]LEVEL %d COMPLETE[/font_size]\n\n" % data.num +
+		"Time  %s     Par  %s\n" % [Hud.fmt_time(level_time), Hud.fmt_time(data.par)] +
+		"Deaths  %d\n\n" % deaths +
+		("[color=gold][font_size=30]MASTERED[/font_size][/color]\n(finished within par time)\n\n" if mastered else "[color=#9aa]Not mastered: finish within par to master it.[/color]\n\n") +
+		"Press [color=gold]E[/color] to continue[/center]")
+	await _wait(0.4)
+	await _wait_continue()
+	hud.hide_overlay()
+	await hud.fade_to(1.0, 0.4)
+	_begin_level(level_index + 1)
+
+# ----------------------------------------------------- finale: lock, reveal, kill
+
+func _final_sequence() -> void:
+	gs = GS.STORY
+	npc.active = false
+	results[data.id] = {"time": level_time, "deaths": deaths, "mastered": level_time <= float(data.par)}
+	hud.letterbox(true, 0.4)
+	hud.set_prompt("")
+	await _say_all(Dialogue.LOCK)
+	hero.celebrate()
+	audio.play("lock")
+	hud.flash(Color(1, 1, 1), 0.9)
+	await _wait(0.8)
+	await _demon_transform()
+	await _say_all(Dialogue.REVEAL)
+	hud.letterbox(false, 0.4)
+	await hud.fade_to(1.0, 0.6)
+	_begin_kill()
+
+func _demon_transform() -> void:
+	level.palette = 2
+	level.queue_redraw()
+	npc.demon = true
+	audio.play("reveal")
+	audio.music("")
+	hud.flash(Color(1.0, 0.1, 0.1), 1.2)
+	await _wait(1.0)
+
+func _begin_kill() -> void:
+	kill_phase = true
+	audio.music("demon")
+	var d := LevelData.by_id("l9k")
+	await _load_level(d)
+	npc.demon = true
+	deaths = 0
+	hud.show_game_ui(true)
+	hud.set_level(0, "THE DEMON LORD'S TRIAL")
+	_level_hint = ""
+	hint_left = 0.0
+	hud.set_hint(HINT_PROMPT)
+	hud.set_timer(0.0, 0.0)
+	hud.set_invert(true, false, 0.0, 0.0)
+	await hud.fade_to(0.0, 0.6)
+	await _say("N", "Walk, little hero. The lamps are mine now.")
+	_begin_play()
+
+func _kill_escape() -> void:
+	gs = GS.STORY
+	npc.active = false
+	hero.celebrate()
+	await _say_all(Dialogue.ESCAPE)
+	await hud.fade_to(1.0, 0.4)
+	await _load_level(LevelData.by_id("l9k"))
+	npc.demon = true
+	await hud.fade_to(0.0, 0.4)
+	_begin_play()
+
+func _kill_success() -> void:
+	gs = GS.ENDING
+	await _wait(0.8)
+	hud.letterbox(true, 0.4)
+	await _say_all(Dialogue.DEATH_FINAL)
+	await hud.fade_to(1.0, 1.0)
+	var mastered := 0
+	for k in results:
+		if results[k].mastered:
+			mastered += 1
+	hud.show_game_ui(false)
+	hud.show_overlay(
+		"[center][font_size=44]THE END[/font_size]\n\n" +
+		"The Demon Lord reclaimed his dungeon.\nThe lamps burned in his honour for a thousand years.\n\n" +
+		"The hero never did find Maribel.\n\n" +
+		"[color=gold]Levels mastered: %d / %d[/color]     Total deaths: %d\n\n" % [mastered, levels.size(), total_deaths] +
+		"Thanks for playing!   Press [color=gold]R[/color] to play again[/center]")

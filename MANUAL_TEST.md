@@ -1,61 +1,54 @@
 # Manual playtest guide
 
-The automated bots (`tests/playthrough.gd`, `tests/soak.gd`) cover logic, but **nobody has played this by hand
-yet**. This is what to check, in about 10 minutes. Open the project in Godot and press **F5**.
+The automated tests prove the rules and that every level is solvable, but **nobody has played this by hand yet**.
+Run it in the editor (F5). In the editor, keys **1 to 9** jump straight to a level, and **F1 then 0** jumps straight to the finale. About 20 minutes covers everything.
 
-**Debug hotkeys** (editor / debug builds only, absent from release exports): **F1-F4** jump the hero to the
-gate / river / forest log / shrine (earlier obstacles are solved); **F9** jumps to the ending.
+## Rules to confirm while you play
+- [ ] The hint line shows only `[H] hint` until you press **H**; then it shows the level's hint for a few seconds and hides again.
+- [ ] **Only the NPC switches lamps.** The hero never changes one. A white spark connects the NPC to the lamp he switches.
+- [ ] The hero always walks to / away from / freezes at the **closest lamp that is ON**, anywhere on the screen.
+- [ ] **Same-colored lamps always switch together** (every level). You should never see two lamps of one color in different states.
+- [ ] The hero **stops beside** a lamp (you can always see the lamp), but walks right onto the **exit** lamp.
+- [ ] With **no lamp on** he stands confused ("?") for a moment, then wanders.
+- [ ] Dying restarts the level at once. **R** restarts a level without counting a death.
 
-Controls: WASD move, **E** interact (examine, switch lampposts), **Q** point at items/obstacles, **SPACE** lantern,
-**F** day/night magic, ESC pause, R restart.
+## Level by level (try the mistake too)
 
-## 1. First 30 seconds: does it read?
-- [ ] Intro explains the guide role. Can you tell, in one read, what you can and can't do?
-- [ ] The hero wanders, grabs things and blunders on his own. Do you feel like you are *watching*, not steering?
-- [ ] When he is off-screen, does the red **HERO** arrow help you find him?
-- [ ] Is the **HERO BLUNDERS** counter and "HERO HOLDS" text useful or noise?
+| # | Do this | You should see |
+|---|---|---|
+| 1 | Walk to the lamp, press **E** | He walks straight down the hall to the exit. If you wait, he wanders and may hit the two spikes. |
+| 2 | Do nothing | He walks into the spikes. Switch the red lamp on early: he is pushed up and away. Switch it off when he is high: he goes over the top. |
+| 3 | Red on early, then off | He slides down the wall toward the gap. Release too early: the spike wall. Never release: a hidden trap in the corner. |
+| 4 | Blue on (freeze), wait for the spike wall to retract, blue off | He crosses the wall. Too early: killed. Then red to steer him over the pit. |
+| 5 | Light the orange lamp right away | He creeps past Gerald the dragon, then use red to steer him over the pit. Do nothing, or be too slow: he runs past fast and the **dragon** kills him. |
+| 6 | Blue off to run him up, blue on to freeze him, **Q** to invert | Blue turns **orange** (look at the symbol and the base band) and he creeps. One inversion is not enough: wait out the cooldown and invert again. |
+| 7 | Orange on, then greens off, then (at the orange lamp) greens on, orange off | Switching one green lamp switches **all** greens, including the exit. Orange off before greens on = no lamp = wandering. |
+| 8 | Wall (blue), dragon (orange), pit (red). Mind the shared green. | Everything from before in one level. |
+| 9 | Wall, hidden traps, dragon (invert twice), then the lock | He reaches the lock. Then: the reveal. |
 
-## 2. Light as guidance
-- [ ] Lantern ON near an item or prop: does he say "Ooh, shiny!" and head there most of the time?
-- [ ] Lantern OFF: does he go back to doing random things?
-- [ ] Walk to a lamppost and press **E**: light radius ring appears, and he is drawn to it too.
+## The ending (the most important part)
+- [ ] The hero breaks the lock, the palette turns red, and your NPC is revealed as the **Demon Lord**.
+- [ ] **Look back:** do the earlier hints (the NPC knowing about tiles, naming the dragon "Gerald", walking over spikes
+  unharmed, "Maribel", the invert lantern being an "heirloom") read as clues now?
+- [ ] **The final trial** (jump to it with **F1 then 0**): the hero is already walking to the exit lamp and **escapes** if you do
+  nothing (the trial restarts). Can you work out how to kill him? The only deadly place is the spike chamber in the north-east.
+  Use the hint line if you are stuck. (Solution: run to the red lamp in the south, switch it on once he is through the gap
+  in the divider wall, then switch it off when he is high up near the top.) Is it hard enough? Too hard? How long did it take?
+- [ ] After he dies you get the ending card with levels mastered and total deaths. **R** starts over.
 
-## 3. Pointing (Q) and ignoring
-- [ ] Stand next to a junk item (fish, bucket, hammer) and press **Q**: a red arrow appears over it.
-  He should *sometimes* obey ("Good eye, guide!") and *sometimes* ignore you. Does the ratio feel fair, or too random?
-- [ ] Point at something in a region he hasn't reached yet: he says "That's way over there. Later!".
+## Feel and fairness (the things only a person can judge)
+- [ ] Is each level's new idea obvious from the hint line and the first attempt, or do you need the dialogue?
+- [ ] Are the timing windows fair (Level 3 red release, Level 4 freeze release, Level 6 cooldown)? Too tight or too forgiving?
+- [ ] Is the random wandering dangerous enough to matter but not unfair?
+- [ ] Are the par times (0:14 for Level 1 up to 0:41 for Level 9; each is the fastest known solve + 4 s, so they are tight) achievable on your second or third try?
+- [ ] Do the hero's lines make you smile? Which are flat? (Dialogue is easy to rewrite in `scripts/dialogue.gd` and the level text in `tools/gen_levels.py`.)
+- [ ] Do the lamp symbols make the colors readable without relying on color alone?
+- [ ] Is the sound pleasant, and is the music too loud or repetitive? (**M** mutes.)
 
-## 4. Stage A: the locked village gate (key)
-- [ ] Wait for him to reach the gate (or press **F1**). With junk in hand he should fail in a *different* funny way per item.
-- [ ] The objective hints at night. Press **F**: do fireflies appear over a garden bed in the south of the village?
-- [ ] Walk there, press **Q** on the key. He fetches it and opens the gate, then takes credit.
-- [ ] **Difficulty check:** could you find the key without the hint? Is the garden too hidden or too obvious?
-- [ ] Bonus: point at the key *before* he reaches the gate, then watch whether he later swaps it for junk.
-
-## 5. Stage B: the river (night) and the werewolves (day)
-- [ ] By day he can't cross and eventually walks in and splashes. At night stepping stones glow.
-- [ ] Press **F** back to day while he is on the stones: he should fall in.
-- [ ] After he crosses at night, werewolves appear on the far bank. Switch to **day**: do they burn off?
-- [ ] If you don't switch, do they maul him and fling him back (and is that annoying or funny)?
-- [ ] The magic has a 3 second cooldown. Does that feel good, too short, or too long?
-
-## 6. Stage C: the fallen log (axe)
-- [ ] He fails with junk first. Walk to the dark hollow tree in the north of the forest with the lantern ON:
-  the axe appears only in light. Point at it. Does the progression make sense?
-
-## 7. The ending
-- [ ] Press **E** on "Quest Complete". Do the four villager scenes (baker, child, farmer, woodcutter) each show the hero
-  alone: talking to nobody, pointing at nothing, arguing, celebrating?
-- [ ] Are the hero's lines in the ending the *same* ones you heard in the game, spoken to an empty spot?
-- [ ] Is the camera far enough out that you can see the hero, the villager and the empty spot?
-- [ ] **The key question:** by the last scene, do you *feel* the twist, or does it need to be more explicit/subtle?
-- [ ] Does anything in the first half now look different in hindsight? (If not, we need more planted hints.)
-
-## 8. Robustness (try to break it)
-- [ ] Mash Space, F, E and Q. Pause (Esc) in the middle of a blunder, resume. Restart (R) mid-run and at the ending.
-- [ ] Stand still for a minute: does the hero ever get stuck, loop forever, or leave the map?
-- [ ] Does it run smoothly (no stutter at night with the lantern light)?
+## Try to break it
+- [ ] Mash E and Q. Pause in the middle of a creep, then resume. Restart (R) mid-cooldown.
+- [ ] Stand still for a minute in Level 1. Does anything get stuck?
+- [ ] Switch lamps while the hero is dying. Press R during the dialogue.
 
 ## What to report back
-For each unchecked box, a short note is enough: *what happened*, *what you expected*, and *how it felt*
-(boring / confusing / unfair / funny). Funniest and least funny moment are especially useful.
+For each unchecked box: *what happened*, *what you expected*, and *how it felt* (boring / confusing / unfair / funny).

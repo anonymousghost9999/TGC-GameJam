@@ -1,21 +1,27 @@
 # AI Use Disclosure
 
-This vertical-slice prototype was produced with an AI coding assistant:
-**Claude (Claude Sonnet 5.5, by Anthropic), operated through Claude Code**, working from the team's written
-proposal (`Proposal.pdf`) and a prompt specifying the scope and rules.
+This prototype was produced with an AI coding assistant: **Claude (Claude Sonnet 5.5, by Anthropic), operated through
+Claude Code**, working from the team's design documents (`Proposal.pdf`, `The_NPC_Job_Full_Game_Plan.md`) and the team's
+step-by-step instructions and corrections during the session.
 
 | Area | AI involvement |
 |---|---|
-| **Code** (all GDScript in `scripts/`, `tests/`, scene files, `project.godot`, `export_presets.cfg`) | Written by Claude. Includes the light mechanic, puzzles, hero state machine, game flow, HUD and twist sequence. Nothing was copied from an existing game or template. |
-| **Design / writing** (dialogue, captions, gag writing, item/puzzle details, the villagers' ending), shaped step by step by the team's direction (open village/forest world, day/night magic, pointing at items, an imaginary guide revealed through several villagers' eyes) | Written by Claude, building on the premise, themes and level outline in the team's human-authored proposal and the team's instructions in the session. |
-| **Art** | AI-generated, drawn procedurally in code. No external image assets. `icon.svg` was also AI-generated. |
-| **Audio** | None. |
+| **Code** (all GDScript in `scripts/`, `tests/`, `tools/`, scene files, `project.godot`, `export_presets.cfg`) | Written by Claude: the lamp system, hero steering, hazards, level loader, inversion, game flow, HUD, audio synthesis, tests. Nothing was copied from an existing game or template. |
+| **Level design** (the 9 level layouts, hazards, lamp placement, verified solutions) | Designed and verified by Claude with a headless simulator, within the rules and level goals set in the team's plan. |
+| **Writing** (dialogue, hints, the prologue, the reveal and ending text) | Written by Claude from the team's premise and twist. |
+| **Art** | AI-generated, drawn procedurally in code. No external images. |
+| **Audio** | AI-generated, synthesised in code. No external sound or music files. |
 | **Docs** (README, CREDITS, this file) | Written by Claude. |
+
+## Design decisions made by the team during development
+
+The team directed, among other things: that the hero is autonomous and only the NPC switches lamps; the four lamp behaviours;
+that **lamps have no radius** (the nearest active lamp anywhere counts); the inversion rules; the 9-level structure; and the
+Demon Lord twist with a gameplay reversal. An earlier prototype (open-world, imaginary-guide concept) was replaced by this design.
 
 ## Honest status
 
 - Claude authored the work above; it must **not** be presented as human-authored.
-- The hackathon team has not yet reviewed or modified this build. Before submission the team should
-  review, playtest, and update this file to say what *they* changed or wrote themselves.
-- The proposal, the overall concept and the decision to use the Godot engine are the team's.
-- Commit history is untouched: nothing here was committed or back-dated by the assistant.
+- The team has not yet reviewed or modified this build. Before submission, review, playtest and update this file with what the
+  team wrote or changed itself.
+- Nothing was committed or back-dated by the assistant; commit history is yours.
