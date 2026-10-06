@@ -1,7 +1,8 @@
 class_name LampManager
 extends Node
 ## Owns every lamp in the level. Responsible for:
-##  - the ON/OFF switching rules (independent per lamp, or GLOBAL per colour group)
+##  - the ON/OFF switching rules (independent per lamp, or GLOBAL per colour group:
+##    every lamp of the colour SWAPS its own state, so mixed groups stay mixed)
 ##  - the inversion transform (visible colour AND behaviour change together)
 ##  - finding the closest active lamp to a point (lamps have no radius)
 
@@ -33,15 +34,15 @@ func set_inverted(on: bool) -> void:
 	inverted = on
 	inversion_changed.emit(on)
 
-## The NPC flips a lamp. In global mode this flips the whole ORIGINAL-colour group.
+## The NPC flips a lamp. In global mode every lamp of the same ORIGINAL colour swaps its
+## own state: two greens that are both off both come on, but an on green and an off green trade places.
 func switch_lamp(l: Lamp) -> void:
-	var target := not l.on
 	if global_mode:
 		for other in lamps:
 			if other.original == l.original:
-				other.set_on(target)
+				other.set_on(not other.on)
 	else:
-		l.set_on(target)
+		l.set_on(not l.on)
 	lamp_switched.emit(l)
 
 func state_of_group(original: int) -> bool:

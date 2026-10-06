@@ -6,11 +6,11 @@ step-by-step instructions and corrections during the session.
 
 | Area | AI involvement |
 |---|---|
-| **Code** (all GDScript in `scripts/`, `tests/`, `tools/`, scene files, `project.godot`, `export_presets.cfg`) | Written by Claude: the lamp system, hero steering, hazards, level loader, inversion, game flow, HUD, audio synthesis, tests. Nothing was copied from an existing game or template. |
+| **Code** (all GDScript in `scripts/`, `tests/`, `tools/`, scene files, `project.godot`, `export_presets.cfg`) | Written by Claude: the lamp system, hero steering, hazards, level loader, inversion, game flow, HUD, audio playback, tests. Nothing was copied from an existing game or template. |
 | **Level design** (the 9 level layouts, hazards, lamp placement, verified solutions) | Designed and verified by Claude with a headless simulator, within the rules and level goals set in the team's plan. |
 | **Writing** (dialogue, hints, the prologue, the reveal and ending text) | Written by Claude from the team's premise and twist. |
-| **Art** | AI-generated, drawn procedurally in code. No external images. |
-| **Audio** | AI-generated, synthesised in code. No external sound or music files. |
+| **Art** | Tiles, characters, doors, spikes, the ogre, the lantern, lamp stands and the font are third-party **CC0** assets (see CREDITS.md), chosen and integrated by Claude. Lamp bulbs, effects and UI are AI-generated, drawn procedurally in code. |
+| **Audio** | Third-party **CC0** sound effects and music (Kenney, OpenGameArt; see CREDITS.md), chosen by Claude. |
 | **Docs** (README, CREDITS, this file) | Written by Claude. |
 
 ## Design decisions made by the team during development

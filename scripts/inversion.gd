@@ -1,13 +1,13 @@
 class_name Inversion
 extends Node
-## The NPC's invert-colour lantern: ACTIVE for 5 s, then a 10 s cooldown.
+## The NPC's invert-colour lantern: ACTIVE for 5 s, then a 5 s cooldown.
 ## While active, every lamp shows AND behaves as its complementary colour.
 
 signal activated
 signal ended
 
 const ACTIVE_TIME := 5.0
-const COOLDOWN_TIME := 10.0
+const COOLDOWN_TIME := 5.0
 
 var manager: LampManager
 var unlocked := false

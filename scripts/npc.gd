@@ -81,35 +81,22 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	var moving := velocity.length() > 5.0
-	var bob := sin(_t * 14.0) * 1.8 if moving else sin(_t * 3.0) * 0.6
-	var robe := Color(0.45, 0.28, 0.62) if not demon else Color(0.5, 0.05, 0.1)
-	var trim := Color(0.95, 0.8, 0.4) if not demon else Color(0.9, 0.5, 0.1)
+	var bob := -absf(sin(_t * 14.0)) * 3.0 if moving else sin(_t * 3.0) * 0.6
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	DrawUtil.ellipse(self, Vector2(0, 5), 12, 4, Color(0, 0, 0, 0.35))
-	var s := 1.0 if not demon else 1.25
-	draw_set_transform(Vector2(0, bob), 0.0, Vector2(_facing * s, s))
-	if demon:   # cape and horns
-		draw_colored_polygon(PackedVector2Array([Vector2(-10, -26), Vector2(10, -26), Vector2(20, 2), Vector2(-20, 2)]), Color(0.25, 0.02, 0.05))
-	draw_colored_polygon(PackedVector2Array([Vector2(-9, 5), Vector2(9, 5), Vector2(6, -18), Vector2(-6, -18)]), robe)
-	draw_rect(Rect2(-7, -10, 14, 3), trim)
-	draw_circle(Vector2(0, -25), 10.0, robe.darkened(0.25))      # hood
-	draw_circle(Vector2(1, -24), 6.8, Color(0.95, 0.82, 0.7) if not demon else Color(0.75, 0.3, 0.3))
-	var eye := Color(0.1, 0.1, 0.15) if not demon else Color(1.0, 0.85, 0.2)
-	draw_circle(Vector2(-1, -25), 1.4, eye)
-	draw_circle(Vector2(4, -25), 1.4, eye)
-	if demon:
-		draw_colored_polygon(PackedVector2Array([Vector2(-7, -30), Vector2(-12, -42), Vector2(-2, -32)]), Color(0.9, 0.85, 0.7))
-		draw_colored_polygon(PackedVector2Array([Vector2(7, -30), Vector2(12, -42), Vector2(2, -32)]), Color(0.9, 0.85, 0.7))
-		draw_arc(Vector2(2, -21), 3.0, 0.2, PI - 0.2, 6, Color(0.1, 0.0, 0.0), 1.5)
-	# the invert-colour lantern
-	var inv_on := inversion != null and inversion.active
-	var lc := Color(0.7, 0.4, 1.0) if inv_on else (Color(1.0, 0.95, 0.7) if (inversion != null and inversion.ready_to_use()) else Color(0.4, 0.4, 0.45))
-	draw_line(Vector2(8, -8), Vector2(14, -20), Color(0.5, 0.35, 0.2), 2.0)
-	if inv_on or (inversion != null and inversion.ready_to_use()):
-		DrawUtil.glow(self, Vector2(14, -22), 16.0, Color(lc.r, lc.g, lc.b, 0.7), 4)
+	DrawUtil.ellipse(self, Vector2(0, 5), 13 if not demon else 18, 4, Color(0, 0, 0, 0.35))
+	if demon:   # a dark aura around the Demon Lord
+		DrawUtil.glow(self, Vector2(0, -26), 40.0 + 3.0 * sin(_t * 4.0), Color(1.0, 0.1, 0.1, 0.45), 5)
+	draw_set_transform(Vector2(0, bob), 0.0, Vector2(_facing, 1.0))
+	Sprites.draw_at_foot(self, Sprites.DEMON if demon else Sprites.NPC, Vector2(0, 6), 4.0 if demon else 3.0)
+	# the invert-colour lantern: glows purple while inverting, dim while recharging
 	if inversion != null and inversion.unlocked:
-		draw_rect(Rect2(11, -27, 7, 8), lc)
-		draw_rect(Rect2(11, -27, 7, 8), Color(0.2, 0.1, 0.1), false, 1.0)
+		var inv_on := inversion.active
+		var ready := inversion.ready_to_use()
+		var glass := Color(0.8, 0.5, 1.0) if inv_on else (Color.WHITE if ready else Color(0.45, 0.45, 0.5))
+		if inv_on or ready:
+			DrawUtil.glow(self, Vector2(17, -16), 20.0, Color(0.85, 0.6, 1.0, 0.7) if inv_on else Color(1.0, 0.85, 0.5, 0.45), 4)
+		draw_line(Vector2(10, -14), Vector2(17, -27), Color(0.35, 0.25, 0.15), 2.0)
+		Sprites.draw_lantern(self, Vector2(17, -16), 1.0, glass)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	if _use_flash > 0.0:
 		# a spark from the NPC's hand to the lamp: it is the NPC who switches lamps, never the hero

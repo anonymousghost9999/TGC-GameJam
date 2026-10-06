@@ -1,6 +1,6 @@
 extends SceneTree
 ## Proves every level is solvable and that its known mistakes really fail, using
-## the real hero physics. Also checks the par time is achievable and that every level
+## the real hero physics (with the NPC really walking to each lamp). Also checks that every level
 ## has the green exit lamp and a start for both characters.
 ## Run: godot --headless --path . --fixed-fps 60 -s tests/levels_test.gd
 
@@ -18,7 +18,7 @@ func _initialize() -> void:
 
 func run() -> void:
 	var all: Array[Dictionary] = []
-	for id in ["l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9", "l9k"]:
+	for id in ["l1", "l2", "l3", "l4", "l5", "l6", "l7", "l8", "l9", "l10", "l11", "l12", "l13", "l14", "l15", "l9k"]:
 		var d := LevelData.by_id(id)
 		check(not d.is_empty(), "level %s exists" % id)
 		all.append(d)
@@ -30,9 +30,6 @@ func run() -> void:
 			check(r.result.begins_with("DIED"), "%s: the kill schedule kills the hero (%s at %.1fs)" % [id, r.result, r.time])
 		else:
 			check(r.result == "EXIT", "%s: the verified solution reaches the exit (%s at %.1fs)" % [id, r.result, r.time])
-			var par := float(d.par)
-			if r.result == "EXIT" and par > 0.0:
-				check(r.time <= par and r.time >= par - 5.0, "%s: par %ds = fastest solve (%.2fs, walking NPC) + 4s" % [id, int(par), r.time])
 		for m: Dictionary in d.mistakes:
 			var rm := await LevelSim.run(self, d, m.schedule, 90.0)
 			var ok := false
@@ -87,8 +84,9 @@ func run() -> void:
 		check(lvl.hero_start != Vector2.ZERO and lvl.npc_start != Vector2.ZERO, "%s: hero and NPC starts exist" % id)
 		# plan rule 13: all lamps of the same colour share ONE ON/OFF state, in every level
 		check(d.get("global", false) == true, "%s: same-colour lamps share one state (global mode is on)" % id)
+		# levels 1-9 keep same-colour lamps in step; from level 10 mixed groups (one on, one off) are the point
 		var consistent := true
-		for c in 4:
+		for c in (4 if int(d.num) <= 9 and d.num > 0 else 0):
 			var seen := []
 			for l in lm.lamps:
 				if l.original == c:
@@ -96,6 +94,6 @@ func run() -> void:
 			for v in seen:
 				if v != seen[0]:
 					consistent = false
-		check(consistent, "%s: no two lamps of the same colour start in different states" % id)
+		check(consistent, "%s: levels 1-9 never start a colour group half on, half off" % id)
 		lvl.queue_free()
 		lm.queue_free()

@@ -1,21 +1,29 @@
 # Credits
 
-## Third-party assets
+## Third-party assets (all CC0 / public domain)
 
-**None.** This build uses no third-party art, audio, music, fonts, plugins or code libraries.
+Every third-party asset is **CC0 1.0** (no attribution required, credited anyway). License texts: `assets/licenses/`.
 
-| Item | Source | License |
-|---|---|---|
-| Godot Engine 4.x (runtime used to run/export the game) | https://godotengine.org | MIT |
-| Default UI font (Godot's built-in fallback font, rendered by the engine; not copied into this repo) | Bundled inside Godot Engine | Bundled with the engine under its own licenses (see Help > About > Third-party Licenses in the editor) |
+| Asset | Used for | Author / source | License |
+|---|---|---|---|
+| **Tiny Dungeon** (`assets/sprites/tiny_dungeon.png`) | floor, walls, spikes, doors, the hero (knight), the NPC (wizard), the Demon Lord | Kenney, https://kenney.nl/assets/tiny-dungeon | CC0 |
+| **Tiny Creatures** (`assets/sprites/tiny_creatures.png`) | Gerald the sleeping ogre | Kenney, https://opengameart.org/content/tiny-creatures | CC0 |
+| **Candles, oil lamp and eye with varied stands** (`assets/sprites/lamps.png`) | the NPC's invert lantern, the lamps' brass stands | https://opengameart.org/node/15186 | CC0 |
+| **Kenney Fonts**: Kenney Mini Square (`assets/fonts/`) | all text | Kenney, https://kenney.nl/assets/kenney-fonts | CC0 |
+| **Interface Sounds** | lamp switch, on/off, invert, dialogue blips, deny | Kenney, https://kenney.nl/assets/interface-sounds | CC0 |
+| **Impact Sounds** | freeze, deaths (trap, ogre, fire), the lock breaking | Kenney, https://kenney.nl/assets/impact-sounds | CC0 |
+| **RPG Audio** | spike death, door | Kenney, https://kenney.nl/assets/rpg-audio | CC0 |
+| **Music Jingles** | level clear, the reveal | Kenney, https://kenney.nl/assets/music-jingles | CC0 |
+| **Spooky Dungeon** (`assets/music/adventure.ogg`) | music in the levels | Memoraphile, https://opengameart.org/content/spooky-dungeon | CC0 (one of its offered licenses) |
+| **Heavy Dungeon** (`assets/music/demon.ogg`) | music in the Demon Lord's trial | MintoDog, https://opengameart.org/content/heavy-dungeon | CC0 |
+| Godot Engine 4.x (runtime) | running / exporting the game | https://godotengine.org | MIT |
 
-## Original / AI-generated assets
+## Original / AI-generated
 
 | Asset | Origin |
 |---|---|
-| All visuals: the hero, the NPC and the Demon Lord form, lamps, hazards, dragon, tiles, exit door and lock, UI | **AI-generated procedural vector art**: drawn at runtime by GDScript `_draw()` code written by Claude (Anthropic) from the team's design. No image files exist. |
+| Lamp bulbs and their symbols, ice/death effects, HUD, title screen, invert-lantern card, the Tab panel | **AI-generated procedural vector art**: drawn at runtime by GDScript `_draw()` code written by Claude (Anthropic). |
 | `icon.svg` | **AI-generated** (Claude): a plain SVG of glowing circles. |
-| All sound effects and both music loops | **AI-generated, synthesised in code at startup** (`scripts/audio.gd`: oscillators and envelopes). No audio files exist. |
 | All dialogue, UI text, level names and hints | **AI-generated** (Claude), following the team's game plan; to be reviewed and edited by the team. |
 
 The game design (premise, lamp rules, level progression, the Demon Lord twist) is the team's, from

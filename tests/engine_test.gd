@@ -175,6 +175,9 @@ func run() -> void:
 	check(greens[0].on and greens[1].on and not red.on, "global mode: switching one green lamp turns ALL green lamps on (red untouched)")
 	lm.switch_lamp(greens[1])
 	check(not greens[0].on and not greens[1].on, "global mode: switching it again turns them all off")
+	greens[0].set_on(true)   # a mixed group: one green on, one off
+	lm.switch_lamp(greens[1])
+	check(not greens[0].on and greens[1].on, "global mode: in a mixed group every green SWAPS its own state")
 	w = await build({"8,3": "g", "20,12": "g"}, false)
 	greens = lamps_of(w.lm, LampColors.C.GREEN)
 	w.lm.switch_lamp(greens[0])
@@ -198,11 +201,11 @@ func run() -> void:
 	check(not inv.try_activate(), "cannot re-activate while active")
 	await frames(300)   # 5 s
 	check(not inv.active and g.current_color() == LampColors.C.GREEN and b.current_color() == LampColors.C.BLUE, "after 5 s the original colours and behaviours return")
-	check(inv.cooldown > 9.0 and not inv.try_activate(), "10 s cooldown starts and blocks activation")
-	await frames(540)
-	check(inv.cooldown > 0.5 and not inv.try_activate(), "still cooling down after ~9 s")
+	check(inv.cooldown > 4.0 and not inv.try_activate(), "5 s cooldown starts and blocks activation")
+	await frames(240)
+	check(inv.cooldown > 0.5 and not inv.try_activate(), "still cooling down after ~4 s")
 	await frames(90)
-	check(inv.cooldown == 0.0 and inv.try_activate(), "usable again after the 10 s cooldown")
+	check(inv.cooldown == 0.0 and inv.try_activate(), "usable again after the 5 s cooldown")
 	# toggling a lamp during inversion groups by its ORIGINAL colour
 	w = await build({"8,3": "g", "20,12": "g", "8,12": "r"}, true)
 	w.inv.try_activate()

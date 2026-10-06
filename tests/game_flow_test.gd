@@ -30,6 +30,9 @@ func tap(action: String) -> void:
 
 ## Advance the game one frame as the bot: skip cutscenes with E, run the schedule while playing.
 func tick() -> void:
+	if not is_instance_valid(game):
+		await process_frame
+		return
 	var gs := game.gs
 	if gs == GameManager.GS.TITLE or gs == GameManager.GS.STORY or gs == GameManager.GS.COMPLETE or (gs == GameManager.GS.INTRO):
 		_bot_clock += 1.0 / 60.0
@@ -52,7 +55,7 @@ func until(cond: Callable, timeout_s: float) -> bool:
 	return cond.call()
 
 func _initialize() -> void:
-	Engine.time_scale = 3.0
+	Engine.time_scale = 1.0   # at 3x the bot only acts every 3rd physics tick and misses tight windows (level 5)
 	await run()
 	Engine.time_scale = 1.0
 	print("\nRESULT: %d failure(s)" % failures)
@@ -65,11 +68,16 @@ func run() -> void:
 	await process_frame
 	await process_frame
 	check(game.gs == GameManager.GS.TITLE, "the game opens on the title screen")
-	check(game.levels.size() == 9, "there are 9 playable levels")
+	check(game.levels.size() == 15, "there are 15 playable levels")
+	check(not game.hud.controls_visible(), "the controls list is hidden at first")
+	await tap("controls")
+	check(game.hud.controls_visible(), "Tab shows the controls list")
+	await tap("controls")
+	check(not game.hud.controls_visible(), "Tab hides it again")
 	await tap("interact")
 	check(game.gs == GameManager.GS.STORY, "E starts the story (prologue outside the dungeon)")
 
-	for i in 9:
+	for i in 15:
 		var d: Dictionary = game.levels[i]
 		check(await until(func(): return game.gs == GameManager.GS.PLAYING and game.data.get("id", "") == d.id, 120.0), "level %d '%s' starts after its intro" % [d.num, d.title])
 		check(game.hud != null and game.hero.state == Hero.State.ACTIVE and game.npc.active, "level %d: hero is active and the NPC can move" % d.num)
@@ -124,9 +132,9 @@ func run() -> void:
 		check(ok_done, "level %d: the perfect guide brings the hero to the exit" % d.num)
 		bot = null
 		game.npc.bot_driven = false
-		if d.id == "l9":
+		if d.id == "l15":
 			break
-		check(game.results.has(d.id), "level %d: result recorded (time %.1fs, par %ds, mastered=%s)" % [d.num, game.results.get(d.id, {}).get("time", -1.0), int(d.par), str(game.results.get(d.id, {}).get("mastered", false))])
+		check(game.results.has(d.id), "level %d: result recorded (deaths %d, flawless=%s)" % [d.num, game.results.get(d.id, {}).get("deaths", -1), str(game.results.get(d.id, {}).get("flawless", false))])
 		# continue to the next level
 		await until(func(): return game.gs == GameManager.GS.INTRO or game.gs == GameManager.GS.PLAYING or game.data.get("id", "") != d.id, 40.0)
 
@@ -145,11 +153,17 @@ func run() -> void:
 	sched = Schedule.new(game.data.solution)
 	check(await until(func(): return game.gs == GameManager.GS.ENDING, 60.0), "kill phase: the lamps kill him and the ending begins")
 	sched = null
-	await until(func(): return false, 12.0)
-	check(game.gs == GameManager.GS.ENDING, "the ending screen is reached (R would restart)")
-	var mastered := 0
+	check(await until(func(): return game._end_card_shown, 30.0), "the end card is shown")
+	check(game.gs == GameManager.GS.ENDING, "the game is on the ending screen")
+	var flawless := 0
 	for k in game.results:
-		if game.results[k].mastered:
-			mastered += 1
-	check(game.results.size() == 9, "all 9 levels are recorded in the results (including the final lock level)")
-	print("levels cleared: %d, mastered: %d, total deaths: %d" % [game.results.size(), mastered, game.total_deaths])
+		if game.results[k].flawless:
+			flawless += 1
+	check(game.results.size() == 15, "all 15 levels are recorded in the results, including the final lock level")
+	print("levels cleared: %d, flawless: %d, total deaths: %d" % [game.results.size(), flawless, game.total_deaths])
+	# E on the end card goes back to the start (a fresh title screen)
+	await tap("interact")
+	for i in 5:
+		await process_frame
+	var fresh := current_scene as GameManager
+	check(fresh != null and is_instance_valid(fresh) and fresh != game and fresh.gs == GameManager.GS.TITLE, "E on the end card returns to the title screen")

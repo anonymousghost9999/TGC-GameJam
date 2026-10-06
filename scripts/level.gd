@@ -31,6 +31,8 @@ var palette := 0        # 0 dungeon, 1 outdoors, 2 demon lord's (final) dungeon
 var _hazard_layer: HazardLayer
 var _floor_tex: ImageTexture   # must be kept alive, or the renderer loses it
 var _floor_pal := -1
+var _exit_lamp: Lamp
+var _door_open := false
 
 func setup(d: Dictionary, lm: LampManager) -> void:
 	data = d
@@ -62,8 +64,8 @@ func _ready() -> void:
 				"N": npc_start = cell_center(c)
 				"X":
 					exit_pos = cell_center(c)
-					var ex := _add_lamp(c, LampColors.C.GREEN, exit_on)
-					ex.is_exit = true
+					_exit_lamp = _add_lamp(c, LampColors.C.GREEN, exit_on)
+					_exit_lamp.is_exit = true
 				"g", "r", "o", "b":
 					_add_lamp(c, LampColors.from_char(ch), false)
 				"G", "R", "O", "B":
@@ -152,66 +154,70 @@ func reset() -> void:
 
 func _process(delta: float) -> void:
 	clock += delta
+	if _exit_lamp != null and _exit_lamp.on != _door_open:
+		queue_redraw()   # the exit door opens and shuts with its lamp
 	if _hazard_layer != null:
 		_hazard_layer.queue_redraw()
 
 # ------------------------------------------------------------------ drawing
 
-func _pal() -> Dictionary:
+## Floor colour tint per palette: 0 dungeon, 1 outdoors (prologue), 2 the Demon Lord's dungeon.
+func tint() -> Color:
 	match palette:
-		1: return {"a": Color(0.36, 0.62, 0.30), "b": Color(0.33, 0.58, 0.28), "wall": Color(0.2, 0.4, 0.2), "face": Color(0.28, 0.5, 0.26)}
-		2: return {"a": Color(0.20, 0.12, 0.17), "b": Color(0.17, 0.09, 0.14), "wall": Color(0.08, 0.04, 0.07), "face": Color(0.28, 0.1, 0.14)}
-	return {"a": Color(0.30, 0.28, 0.38), "b": Color(0.27, 0.25, 0.35), "wall": Color(0.14, 0.12, 0.20), "face": Color(0.26, 0.22, 0.36)}
+		1: return Color(0.95, 1.0, 0.9)
+		2: return Color(0.62, 0.32, 0.38)
+	return Color(0.66, 0.62, 0.72)   # a dim dungeon, so the lamps' light stands out
 
-## The floor and walls are ONE tiny texture (1 pixel per tile) scaled up with nearest
-## filtering: a single draw call. (Hundreds of separate rectangles hit a renderer
-## glitch that dropped a sliver of one tile.)
-func _tile_texture(p: Dictionary) -> ImageTexture:
-	var img := Image.create(COLS, ROWS, false, Image.FORMAT_RGBA8)
+## The floor and walls are baked into ONE image (16 px per tile, Kenney "Tiny Dungeon")
+## and drawn scaled up with nearest filtering: a single draw call.
+func _tile_texture() -> ImageTexture:
+	var sheet := Sprites.SHEET.get_image()
+	sheet.convert(Image.FORMAT_RGBA8)
+	var S := Sprites.CELL
+	var img := Image.create(COLS * S, ROWS * S, false, Image.FORMAT_RGBA8)
 	for y in ROWS:
 		for x in COLS:
 			var c := Vector2i(x, y)
-			var col: Color = p.wall if walls.has(c) else (p.a if (x + y) % 2 == 0 else p.b)
-			img.set_pixel(x, y, col)
+			var at := Vector2i(x * S, y * S)
+			var h := absi(hash(c)) % Sprites.FLOOR_ALT.size()
+			var floor_i: int = (Sprites.FLOOR_OUT_ALT if h == 3 else Sprites.FLOOR_OUT) if palette == 1 else Sprites.FLOOR_ALT[h]
+			img.blit_rect(sheet, Sprites.region(floor_i), at)
+			if walls.has(c) and not _is_dragon_cell(c):
+				img.blit_rect(sheet, Sprites.region(Sprites.WALL), at)
+				if walls.has(c + Vector2i(0, 1)) or y == ROWS - 1:   # wall tops (not facing the room) are darker: depth
+					for py in S:
+						for px in S:
+							img.set_pixel(at.x + px, at.y + py, img.get_pixel(at.x + px, at.y + py).darkened(0.35))
 	return ImageTexture.create_from_image(img)
 
+func _is_dragon_cell(c: Vector2i) -> bool:
+	return dragons.has(cell_center(c))
+
 func _draw() -> void:
-	var p := _pal()
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	if _floor_tex == null or _floor_pal != palette:
-		_floor_tex = _tile_texture(p)
+		_floor_tex = _tile_texture()
 		_floor_pal = palette
-	draw_texture_rect(_floor_tex, Rect2(0, 0, COLS * TILE, ROWS * TILE), false)
-	for y in ROWS:
-		for x in COLS:
-			var c := Vector2i(x, y)
-			var r := Rect2(x * TILE, y * TILE, TILE, TILE)
-			if walls.has(c):
-				if not walls.has(c + Vector2i(0, 1)):
-					draw_rect(Rect2(r.position.x, r.position.y + TILE - 8, TILE, 8), p.face)
-				draw_line(r.position + Vector2(0, 14), r.position + Vector2(TILE, 14), Color(0, 0, 0, 0.18), 1.0)
-				draw_line(r.position + Vector2(16, 0), r.position + Vector2(16, 14), Color(0, 0, 0, 0.18), 1.0)
-			elif hazards.get(c, "") == "x":   # a subtly cracked tile: the hero cannot see it
-				draw_line(r.position + Vector2(8, 10), r.position + Vector2(22, 20), Color(0, 0, 0, 0.22), 1.5)
-				draw_line(r.position + Vector2(22, 8), r.position + Vector2(12, 24), Color(0, 0, 0, 0.18), 1.5)
-	# exit marker
-	if exit_pos != Vector2.ZERO:
-		var kind: String = data.get("exit_kind", "door")
-		var e := exit_pos
-		DrawUtil.glow(self, e, 46.0, Color(0.4, 1.0, 0.5, 0.35))
-		if kind == "lock":
-			draw_rect(Rect2(e + Vector2(-16, -2), Vector2(32, 26)), Color(0.5, 0.45, 0.2))
-			draw_arc(e + Vector2(0, -2), 11.0, PI, TAU, 12, Color(0.8, 0.75, 0.3), 5.0)
-			draw_circle(e + Vector2(0, 10), 3.0, Color(0.1, 0.1, 0.1))
-		else:
-			draw_rect(Rect2(e + Vector2(-16, -14), Vector2(32, 34)), Color(0.1, 0.25, 0.16))
-			draw_circle(e + Vector2(0, -14), 16.0, Color(0.1, 0.25, 0.16))
-			draw_rect(Rect2(e + Vector2(-11, -12), Vector2(22, 32)), Color(0.45, 1.0, 0.6, 0.35))
-	for d in dragons:   # sleeping dragon + its "light sleeper" zone
-		draw_arc(d, DRAGON_RADIUS, 0.0, TAU, 40, Color(1.0, 0.3, 0.2, 0.22), 1.5)
-		DrawUtil.ellipse(self, d + Vector2(0, 6), 26, 14, Color(0.2, 0.5, 0.25))
-		draw_circle(d + Vector2(-16, -2), 9.0, Color(0.25, 0.58, 0.3))
-		draw_line(d + Vector2(-20, -1), d + Vector2(-12, -1), Color(0.05, 0.1, 0.05), 2.0)
-		draw_colored_polygon(PackedVector2Array([d + Vector2(-4, -10), d + Vector2(0, -20), d + Vector2(4, -10)]), Color(0.7, 0.3, 0.25))
-		draw_colored_polygon(PackedVector2Array([d + Vector2(8, -10), d + Vector2(12, -18), d + Vector2(16, -9)]), Color(0.7, 0.3, 0.25))
-		draw_string(ThemeDB.fallback_font, d + Vector2(-10, -24), "zZz", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(1, 1, 1, 0.7))
+	draw_texture_rect(_floor_tex, Rect2(0, 0, COLS * TILE, ROWS * TILE), false, tint())
+	for c: Vector2i in hazards:
+		if hazards[c] == "x":   # a subtly cracked tile: the hero cannot see it
+			var o := Vector2(c.x * TILE, c.y * TILE)
+			draw_polyline(PackedVector2Array([o + Vector2(7, 12), o + Vector2(13, 15), o + Vector2(17, 13), o + Vector2(24, 19)]), Color(0, 0, 0, 0.13), 1.0)
+	_draw_exit()
+
+## The exit: a big door in the floor's far end. The exit lamp hangs ABOVE the door (see lamp.gd),
+## so the light never hides the door. Open while the exit lamp is on, shut while it is off.
+func _draw_exit() -> void:
+	if exit_pos == Vector2.ZERO:
+		return
+	var e := exit_pos
+	var foot := e + Vector2(0, TILE * 0.5)
+	_door_open = _exit_lamp != null and _exit_lamp.on
+	DrawUtil.ellipse(self, foot + Vector2(0, -2), 34, 9, Color(0.4, 1.0, 0.5, 0.45 if _door_open else 0.15))
+	var kind: String = data.get("exit_kind", "door")
+	Sprites.draw_at_foot(self, Sprites.DOOR_OPEN if _door_open and kind != "lock" else Sprites.DOOR_CLOSED, foot, 4.0)
+	if kind == "lock":   # a heavy padlock on the final door
+		var p := foot + Vector2(0, -24)
+		draw_arc(p + Vector2(0, -6), 7.0, PI, TAU, 10, Color(0.75, 0.75, 0.8), 3.0)
+		draw_rect(Rect2(p + Vector2(-9, -6), Vector2(18, 14)), Color(0.95, 0.75, 0.2))
+		draw_rect(Rect2(p + Vector2(-9, -6), Vector2(18, 14)), Color(0.3, 0.2, 0.05), false, 1.5)
+		draw_circle(p + Vector2(0, 0), 2.0, Color(0.2, 0.12, 0.05))
