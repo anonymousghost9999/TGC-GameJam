@@ -29,6 +29,9 @@ var _invert_card: InvertCard
 var _lamp_card: LampCard
 var _overlay: ColorRect
 var _overlay_text: RichTextLabel
+var _credits: ColorRect
+var _credits_text: RichTextLabel
+var _credits_tween: Tween
 var _flash: ColorRect
 var _fade: ColorRect
 var _bar_top: ColorRect
@@ -67,6 +70,18 @@ func _ready() -> void:
 	_overlay_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.add_child(_overlay_text)
 	_overlay.visible = false
+	_credits = _rect(Vector2.ZERO, Vector2(W, H), Color(0.02, 0.01, 0.05, 1.0))
+	_credits.clip_contents = true
+	_credits_text = RichTextLabel.new()
+	_credits_text.bbcode_enabled = true
+	_credits_text.fit_content = true
+	_credits_text.scroll_active = false
+	_credits_text.position = Vector2(120, H)
+	_credits_text.size = Vector2(W - 240, 10)
+	_credits_text.add_theme_font_size_override("normal_font_size", 19)
+	_credits_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_credits.add_child(_credits_text)
+	_credits.visible = false
 	_invert_card = InvertCard.new()
 	add_child(_invert_card)
 	_lamp_card = LampCard.new()
@@ -270,6 +285,30 @@ func show_overlay(bbcode: String) -> void:
 
 func hide_overlay() -> void:
 	_overlay.visible = false
+	hide_credits()
+
+## Scrolls the credits up the screen. Returns when the last line has left it.
+func show_credits(bbcode: String, seconds: float) -> void:
+	_overlay.visible = false
+	_credits_text.text = bbcode
+	_credits_text.position.y = H
+	_credits.visible = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var end_y := -_credits_text.get_content_height() - 20.0
+	if _credits_tween != null:
+		_credits_tween.kill()
+	_credits_tween = create_tween()
+	_credits_tween.tween_property(_credits_text, "position:y", end_y, seconds)
+	await _credits_tween.finished
+
+func hide_credits() -> void:
+	if _credits_tween != null:
+		_credits_tween.kill()
+	_credits.visible = false
+
+func credits_visible() -> bool:
+	return _credits.visible
 
 func show_game_ui(on: bool) -> void:
 	for n in _game_ui:

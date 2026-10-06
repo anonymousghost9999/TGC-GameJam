@@ -64,3 +64,51 @@ const DEATH_FINAL := [
 ]
 
 const ENDING_CARD := "THE END\n\nThe Demon Lord reclaimed his dungeon.\nThe lamps burned in his honour for a thousand years.\n\nThe hero never did find Maribel."
+
+const CREDITS := "[center][font_size=44][color=gold]THE NPC JOB[/color][/font_size]
+
+[color=#9fb0d0]A game for the Game Development Hackathon[/color]
+
+
+[font_size=26][color=gold]THE TEAM[/color][/font_size]
+
+Yakkala Viswanadha Kartikeya
+Dhiraj Chitluri
+Kummathi Nikhith Reddy
+Mule Santosh Reddy
+Krithik Kambhampati
+
+
+[font_size=26][color=gold]GAME DESIGN[/color][/font_size]
+
+Premise, lamp rules, levels and the twist: the team
+
+
+[font_size=26][color=gold]CODE, DIALOGUE AND EFFECTS[/color][/font_size]
+
+Written with Claude (Anthropic): all GDScript, dialogue,
+level layouts, and the procedural lamp, ice and UI art
+Made in Godot Engine 4
+
+
+[font_size=26][color=gold]ART[/color][/font_size]
+
+Tiny Dungeon: Kenney (kenney.nl)
+Tiny Creatures: Clint Bellanger
+Lamp sprites: OpenGameArt.org
+Font: Kenney Mini Square
+
+
+[font_size=26][color=gold]SOUND AND MUSIC[/color][/font_size]
+
+Interface, Impact and RPG Audio, Music Jingles: Kenney
+Spooky Dungeon: Memoraphile
+Heavy Dungeon: MintoDog
+
+All third-party assets are CC0 / public domain
+
+
+[font_size=26][color=gold]THANK YOU FOR PLAYING[/color][/font_size]
+
+The hero is fine. Probably.[/center]
+"

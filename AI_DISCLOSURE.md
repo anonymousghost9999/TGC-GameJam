@@ -7,21 +7,15 @@ step-by-step instructions and corrections during the session.
 | Area | AI involvement |
 |---|---|
 | **Code** (all GDScript in `scripts/`, `tests/`, `tools/`, scene files, `project.godot`, `export_presets.cfg`) | Written by Claude: the lamp system, hero steering, hazards, level loader, inversion, game flow, HUD, audio playback, tests. Nothing was copied from an existing game or template. |
-| **Level design** (the 9 level layouts, hazards, lamp placement, verified solutions) | Designed and verified by Claude with a headless simulator, within the rules and level goals set in the team's plan. |
+| **Level design** (Levels 1-9: layouts, hazards, lamp placement, verified solutions) | Designed and verified by Claude with a headless simulator, within the rules and level goals set in the team's plan. |
+| **Levels 10-15** (the harder levels after Level 9) | Added by the team. Claude's simulator checks that their stored solutions reach the exit (`tests/levels_test.gd`). |
 | **Writing** (dialogue, hints, the prologue, the reveal and ending text) | Written by Claude from the team's premise and twist. |
-| **Art** | Tiles, characters, doors, spikes, the ogre, the lantern, lamp stands and the font are third-party **CC0** assets (see CREDITS.md), chosen and integrated by Claude. Lamp bulbs, effects and UI are AI-generated, drawn procedurally in code. |
-| **Audio** | Third-party **CC0** sound effects and music (Kenney, OpenGameArt; see CREDITS.md), chosen by Claude. |
-| **Docs** (README, CREDITS, this file) | Written by Claude. |
+| **Art** | Tiles, characters, doors, spikes, the ogre, the lamp glass and stands, and the font are third-party **CC0** assets (see CREDITS.md); the team added the asset files and Claude integrated them. Claude's code tints the lamp glass per colour, draws the lamp glyphs, glows, ice and death effects, the HUD, title screen and end credits procedurally, and applies the navy night tint to the dungeon. |
+| **Audio** | Third-party **CC0** sound effects and music (Kenney, OpenGameArt; see CREDITS.md). Claude wrote the playback code and volume levels. |
+| **Docs** (README, CREDITS, this file) | Written by Claude, then updated to match the game as it changed. The end credits text (including the team's names, from `Proposal.pdf`) was written by Claude. |
 
 ## Design decisions made by the team during development
 
 The team directed, among other things: that the hero is autonomous and only the NPC switches lamps; the four lamp behaviours;
-that **lamps have no radius** (the nearest active lamp anywhere counts); the inversion rules; the 9-level structure; and the
+that **lamps have no radius** (the nearest active lamp anywhere counts); the inversion rules; the level structure (extended from 9 to 15 levels by the team); the navy night look; and the
 Demon Lord twist with a gameplay reversal. An earlier prototype (open-world, imaginary-guide concept) was replaced by this design.
-
-## Honest status
-
-- Claude authored the work above; it must **not** be presented as human-authored.
-- The team has not yet reviewed or modified this build. Before submission, review, playtest and update this file with what the
-  team wrote or changed itself.
-- Nothing was committed or back-dated by the assistant; commit history is yours.

@@ -7,7 +7,7 @@ Every third-party asset is **CC0 1.0** (no attribution required, credited anyway
 | Asset | Used for | Author / source | License |
 |---|---|---|---|
 | **Tiny Dungeon** (`assets/sprites/tiny_dungeon.png`) | floor, walls, spikes, doors, the hero (knight), the NPC (wizard), the Demon Lord | Kenney, https://kenney.nl/assets/tiny-dungeon | CC0 |
-| **Tiny Creatures** (`assets/sprites/tiny_creatures.png`) | Gerald the sleeping ogre | Kenney, https://opengameart.org/content/tiny-creatures | CC0 |
+| **Tiny Creatures** (`assets/sprites/tiny_creatures.png`) | Gerald the sleeping ogre | Clint Bellanger (made with Kenney's permission), https://opengameart.org/content/tiny-creatures | CC0 |
 | **Candles, oil lamp and eye with varied stands** (`assets/sprites/lamps.png`) | the NPC's invert lantern, the lamps' brass stands | https://opengameart.org/node/15186 | CC0 |
 | **Kenney Fonts**: Kenney Mini Square (`assets/fonts/`) | all text | Kenney, https://kenney.nl/assets/kenney-fonts | CC0 |
 | **Interface Sounds** | lamp switch, on/off, invert, dialogue blips, deny | Kenney, https://kenney.nl/assets/interface-sounds | CC0 |

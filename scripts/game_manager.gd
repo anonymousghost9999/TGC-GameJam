@@ -41,6 +41,7 @@ var _npc_hazard_noted := false
 var _awaiting_continue := false
 var _cards_shown := {}           # new-lamp cards already shown this session
 var _end_card_shown := false
+var _credits_running := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -290,8 +291,11 @@ func _unhandled_input(event: InputEvent) -> void:
 				_set_paused(false)
 				_retry()
 		GS.ENDING:
-			if _end_card_shown and (confirm or event.is_action_pressed("restart")):
-				_back_to_title()
+			if _credits_running:
+				if confirm or event.is_action_pressed("restart") or event.is_action_pressed("pause"):
+					_back_to_title()
+			elif _end_card_shown and (confirm or event.is_action_pressed("restart")):
+				_roll_credits()
 
 func _set_paused(on: bool) -> void:
 	get_tree().paused = on
@@ -529,12 +533,22 @@ func _kill_success() -> void:
 		"The Demon Lord reclaimed his dungeon.\nThe lamps burned in his honour for a thousand years.\n\n" +
 		"The hero never did find Maribel.\n\n" +
 		"[color=gold]Flawless levels: %d / %d[/color]     Total deaths: %d\n\n" % [flawless, levels.size(), total_deaths] +
-		"Thanks for playing!   Press [color=gold]E[/color] to return to the start[/center]")
+		"Thanks for playing!   Press [color=gold]E[/color] for the credits[/center]")
 	_end_card_shown = true
 	var tok := _token
 	await _wait(20.0)   # nobody pressed anything: back to the title screen by itself
-	if tok == _token and gs == GS.ENDING:
+	if tok == _token and gs == GS.ENDING and not _credits_running:
 		_back_to_title()
+
+## After the end card: the end credits, then back to the title screen.
+func _roll_credits() -> void:
+	_credits_running = true
+	var tok := _token
+	await hud.show_credits(Dialogue.CREDITS, 34.0)
+	if tok == _token and gs == GS.ENDING:
+		await _wait(2.0)
+		if tok == _token and gs == GS.ENDING:
+			_back_to_title()
 
 ## From the end card: start over at the title screen.
 func _back_to_title() -> void:

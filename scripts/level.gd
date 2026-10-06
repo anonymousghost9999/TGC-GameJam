@@ -166,7 +166,7 @@ func tint() -> Color:
 	match palette:
 		1: return Color(0.95, 1.0, 0.9)
 		2: return Color(0.62, 0.32, 0.38)
-	return Color(0.66, 0.62, 0.72)   # a dim dungeon, so the lamps' light stands out
+	return Color(0.14, 0.28, 0.7)   # a navy night dungeon, so the lamps' light stands out
 
 ## The floor and walls are baked into ONE image (16 px per tile, Kenney "Tiny Dungeon")
 ## and drawn scaled up with nearest filtering: a single draw call.

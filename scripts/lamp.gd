@@ -44,9 +44,9 @@ func _draw() -> void:
 	# the exit lamp hangs ABOVE its door (drawn by the level), so its light never hides the door
 	var p := Vector2(0, -66) if is_exit else Vector2(0, -20)
 	if on:
-		DrawUtil.glow(self, p, (34.0 if is_exit else 54.0) + 6.0 * pulse, Color(c.r, c.g, c.b, 0.55), 6)
+		DrawUtil.glow(self, p, (34.0 if is_exit else 54.0) + 6.0 * pulse, Color(c.r, c.g, c.b, 0.68), 6)
 		if not is_exit:
-			DrawUtil.glow(self, Vector2.ZERO, 110.0, Color(c.r, c.g, c.b, 0.07), 5)   # soft ambient colour only
+			DrawUtil.glow(self, Vector2.ZERO, 110.0, Color(c.r, c.g, c.b, 0.11), 5)   # soft ambient colour only
 	if _flash > 0.0:
 		draw_circle(p, 14.0 + 22.0 * (1.0 - _flash), Color(1, 1, 1, 0.5 * _flash))
 	if is_exit:   # a bracket on the door frame
@@ -60,13 +60,16 @@ func _draw() -> void:
 ## A lamp's bulb with its behaviour glyph (readable without relying on colour alone).
 ## Also used by the title screen and the invert-lantern card. `k` scales it.
 static func draw_bulb(ci: CanvasItem, p: Vector2, c: Color, cur: int, lit: bool, k := 1.0) -> void:
-	ci.draw_circle(p, 12.0 * k, c if lit else c.darkened(0.62))
-	ci.draw_arc(p, 12.0 * k, 0.0, TAU, 20, Color(0.1, 0.1, 0.12), 2.0 * k)
+	# the oil lamp's glass, tinted the lamp's colour (dim when off), with the behaviour glyph on its belly
+	var glass := c.lightened(0.2) if lit else c.darkened(0.7)
+	Sprites.draw_lantern(ci, p + Vector2(0, -2) * k, 1.55 * k, glass)
+	var gp := p + Vector2(0, 4) * k
+	ci.draw_circle(gp, 6.5 * k, c.lightened(0.55) if lit else c.darkened(0.5))   # a pale disc so the glyph reads on any colour
 	var g := Color(0.06, 0.07, 0.1, 0.95 if lit else 0.55)
 	var q := func(pts: Array) -> PackedVector2Array:
 		var out := PackedVector2Array()
 		for v: Vector2 in pts:
-			out.append(p + v * k)
+			out.append(gp + v * k * 0.8)
 		return out
 	match cur:
 		LampColors.C.GREEN:   # arrows pointing in: come here
@@ -77,7 +80,7 @@ static func draw_bulb(ci: CanvasItem, p: Vector2, c: Color, cur: int, lit: bool,
 			ci.draw_colored_polygon(q.call([Vector2(2, -4), Vector2(2, 4), Vector2(8, 0)]), g)
 		LampColors.C.ORANGE:   # one small arrow: slowly this way
 			ci.draw_colored_polygon(q.call([Vector2(-6, -4), Vector2(-6, 4), Vector2(1, 0)]), g)
-			ci.draw_circle(p + Vector2(5, 0) * k, 1.6 * k, g)
+			ci.draw_circle(gp + Vector2(5, 0) * k * 0.8, 1.6 * k, g)
 		_:   # two bars: pause
-			ci.draw_rect(Rect2(p + Vector2(-5, -5) * k, Vector2(3, 10) * k), g)
-			ci.draw_rect(Rect2(p + Vector2(2, -5) * k, Vector2(3, 10) * k), g)
+			ci.draw_rect(Rect2(gp + Vector2(-5, -5) * k * 0.8, Vector2(3, 10) * k * 0.8), g)
+			ci.draw_rect(Rect2(gp + Vector2(2, -5) * k * 0.8, Vector2(3, 10) * k * 0.8), g)

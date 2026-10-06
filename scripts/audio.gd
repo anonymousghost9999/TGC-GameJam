@@ -7,7 +7,7 @@ extends Node
 const SFX := ["switch", "on", "off", "invert_on", "invert_off", "freeze", "death_spike", "death_fire",
 	"death_trap", "death_dragon", "win", "lock", "reveal", "blip_h", "blip_n", "deny", "door"]
 const MUSIC := ["adventure", "demon"]
-const MUSIC_DB := -14.0
+const MUSIC_DB := -10.0
 
 signal built
 
@@ -24,7 +24,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	for i in 8:
 		var p := AudioStreamPlayer.new()
-		p.volume_db = -4.0
+		p.volume_db = -1.0
 		add_child(p)
 		_players.append(p)
 	_music_player = AudioStreamPlayer.new()
@@ -46,7 +46,7 @@ func play(sfx_name: String, pitch := 1.0, volume_db := 0.0) -> void:
 	_next = (_next + 1) % _players.size()
 	p.stream = _sfx[sfx_name]
 	p.pitch_scale = pitch
-	p.volume_db = -4.0 + volume_db
+	p.volume_db = -1.0 + volume_db
 	p.play()
 
 func music(track: String) -> void:

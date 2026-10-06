@@ -35,7 +35,7 @@ func _draw() -> void:
 					_spikes(o, 1.0)
 	for d in level.dragons:   # Gerald the ogre, asleep, and the zone where fast steps wake him
 		var breath := 0.5 + 0.5 * sin(t * 1.6)
-		draw_circle(d, Level.DRAGON_RADIUS, Color(0.55, 0.1, 0.35, 0.12 + 0.04 * breath))   # his hearing
+		draw_circle(d, Level.DRAGON_RADIUS, Color(0.7, 0.12, 0.3, 0.2 + 0.05 * breath))   # his hearing
 		for k in 28:   # a soft dotted ring at the edge of his hearing
 			var a := TAU * k / 28.0 + t * 0.05
 			draw_circle(d + Vector2.from_angle(a) * Level.DRAGON_RADIUS, 2.2, Color(1.0, 0.7, 0.85, 0.45 + 0.25 * breath))
@@ -47,5 +47,7 @@ func _draw() -> void:
 
 ## Spikes: the tileset's spike plate. k < 1 dims it (retracted / about to come out).
 func _spikes(o: Vector2, k: float) -> void:
-	var m := level.tint() * Color(k, k, k)
+	# dusky steel in the navy dungeon, so spikes never read as a blue (freeze) lamp
+	var base := Color(0.72, 0.62, 0.8) if level.palette == 0 else level.tint()
+	var m := base * Color(k, k, k)
 	Sprites.draw_cell(self, Sprites.SPIKES, Rect2(o, Vector2(Level.TILE, Level.TILE)), m)
