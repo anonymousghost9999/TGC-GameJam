@@ -17,6 +17,20 @@ Design source of truth: [The_NPC_Job_Full_Game_Plan.md](The_NPC_Job_Full_Game_Pl
 2. From this folder, import once and run: `godot --headless --path . --import` then `godot --path .`
    (or open `project.godot` in the editor and press **F5**).
 
+### Run it in a browser (web build)
+
+The game is also built for the web. **Browsers block `index.html` opened straight from disk**, so serve the folder over HTTP:
+
+1. Get the web build: unzip `the-npc-job-web.zip` (the zip uploaded for the jam), or build it yourself (see
+   [Browser export](#browser-export-itchio) below). Either way you end up with a folder containing `index.html`, `index.js`,
+   `index.wasm` and `index.pck`.
+2. In that folder, start a local web server, for example: `python3 -m http.server 8000`
+3. Open **http://localhost:8000** in a current Chromium-based browser (Chrome, Edge, Brave) or Firefox, and **click the page once**
+   so the browser allows sound. Press **E** to start.
+
+It needs a keyboard (WASD, E, Q, H). On itch.io upload the zip as an **HTML** project (tick *This file will be played in the browser*,
+viewport 960 x 544, fullscreen button on). No server setup is needed there.
+
 ## Controls
 
 | Key | Action |
@@ -142,11 +156,15 @@ reveal and the kill phase to the ending. A source-level check also guarantees th
 ## Browser export (itch.io)
 
 Configured for the **Compatibility** renderer (web-safe); `export_presets.cfg` has a `Web` preset that excludes tests and tools.
-1. *Editor > Manage Export Templates > Download and Install* (matching your editor version).
-2. *Project > Export > Web > Export Project* to `export/web/index.html`; zip `export/web/` and upload as HTML5.
+1. *Editor > Manage Export Templates > Download and Install* (matching your editor version), or from the command line download
+   `Godot_v4.7.2-stable_export_templates.tpz` and install the `web_*` files into `~/.local/share/godot/export_templates/4.7.2.stable/`.
+2. Export: `mkdir -p export/web && godot --headless --path . --export-release "Web" export/web/index.html`
+   (or *Project > Export > Web > Export Project*). The result is about 44 MB uncompressed (the engine is 40 MB), 14 MB zipped.
+3. Zip the **contents** of `export/web/` (so `index.html` sits at the root of the zip) and upload as an HTML project.
+   `export/` is in `.gitignore`.
 
-**Status: the web export has NOT been built or tested.** Export templates were not installed on the dev machine. Check in a browser
-that audio unlocks on the first key press.
+**Status:** the export builds cleanly and the title screen was confirmed to load in Chromium from a local server. Playing through
+the levels, sound and the finale in a browser has **not** been tested yet: do that before relying on it.
 
 ## Design decisions made while building (please review)
 
@@ -163,7 +181,7 @@ These went beyond or interpreted the plan; each is easy to change:
 
 ## Known issues / limitations
 
-- Web export untested. Animation is minimal (sprites bob; no walk cycles).
+- Web build exports and its title screen loads, but full play in a browser is untested. Animation is minimal (sprites bob; no walk cycles).
 - Not yet playtested by humans: difficulty, the comedy, and how clear the foreshadowing is all need real players.
   The fastest scripted solutions take 9 to 38 s per level; a first-time player will take several times that, much more on 11 to 15.
 - The hero's random wandering is random: levels are designed so the *intended* solution never relies on it.
