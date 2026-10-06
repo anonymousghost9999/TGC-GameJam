@@ -5,7 +5,7 @@ extends Node
 ## play("name", pitch) / music("adventure" | "demon" | "") / toggle_mute().
 
 const SFX := ["switch", "on", "off", "invert_on", "invert_off", "freeze", "death_spike", "death_fire",
-	"death_trap", "death_dragon", "win", "lock", "reveal", "blip_h", "blip_n", "deny", "door"]
+	"death_trap", "death_dragon", "win", "lock", "reveal", "blip_h", "blip_n", "deny", "door", "ogre_growl"]
 const MUSIC := ["adventure", "demon"]
 const MUSIC_DB := -10.0
 

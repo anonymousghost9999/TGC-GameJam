@@ -1,0 +1,6 @@
+2D Pixel Fire Sprite Strip
+by Color Optimist (ColorOptimist) on OpenGameArt.org
+https://opengameart.org/content/2d-pixel-fire-sprite-strip
+License: Creative Commons Attribution 3.0 (CC-BY 3.0) https://creativecommons.org/licenses/by/3.0/
+Attribution is required: credit "Color Optimist" with the link above.
+Changes made: the sprite strip is used unmodified (renamed fire.png); frames are drawn scaled in code.

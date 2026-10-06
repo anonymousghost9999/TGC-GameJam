@@ -95,6 +95,7 @@ Made in Godot Engine 4
 
 Tiny Dungeon: Kenney (kenney.nl)
 Tiny Creatures: Clint Bellanger
+Fire: Color Optimist (CC-BY 3.0)
 Lamp sprites: OpenGameArt.org
 Font: Kenney Mini Square
 
@@ -105,7 +106,7 @@ Interface, Impact and RPG Audio, Music Jingles: Kenney
 Spooky Dungeon: Memoraphile
 Heavy Dungeon: MintoDog
 
-All third-party assets are CC0 / public domain
+Third-party assets are CC0 / public domain, except the fire (CC-BY 3.0)
 
 
 [font_size=26][color=gold]THANK YOU FOR PLAYING[/color][/font_size]

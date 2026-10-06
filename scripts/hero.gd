@@ -11,6 +11,7 @@ extends CharacterBody2D
 
 signal died(kind: String)
 signal reached_exit
+signal ogre_woke
 signal behavior_changed(color: int)   # -1 = no influence
 
 enum State { IDLE, ACTIVE, DEAD, WON, STORY }
@@ -18,6 +19,7 @@ enum State { IDLE, ACTIVE, DEAD, WON, STORY }
 const SPEED := 80.0
 const ORANGE_FACTOR := 0.4
 const WANDER_SPEED := 56.0
+const RUN_SCALE := 1.25   # speed multiplier while an ogre is chasing him
 const CONFUSE_TIME := 0.6
 const ARRIVE_DIST := 6.0     # for the exit lamp: he really walks onto it
 const STAND_OFF := 28.0      # for every other lamp he stops BESIDE it, so the lamp stays visible
@@ -66,6 +68,7 @@ func place(p: Vector2) -> void:
 	trace.clear()
 
 func start() -> void:
+	level.ogre_idx = -1
 	state = State.ACTIVE
 
 func say(line: String, seconds := 2.6) -> void:
@@ -99,6 +102,8 @@ func _physics_process(delta: float) -> void:
 		_win_t += delta
 	elif state == State.ACTIVE:
 		_think(delta)
+		if level.ogre_idx >= 0:
+			velocity *= RUN_SCALE   # the ogre is awake: he runs for his life (looks the part)
 		move_and_slide()
 		speed_now = get_real_velocity().length()
 		if record_trace:
@@ -157,11 +162,16 @@ func _check_world() -> void:
 	if h != "":
 		die(h)
 		return
-	if level.stealth_violation(global_position, speed_now):
-		die("dragon")
-		return
 	if level.at_exit(global_position):
 		reached_exit.emit()
+		return
+	if level.ogre_idx < 0:
+		var woke := level.stealth_violation(global_position, speed_now)
+		if woke >= 0:
+			level.wake_ogre(woke)   # he wakes: only the exit can save the hero now
+			ogre_woke.emit()
+	elif level.step_ogre(get_physics_process_delta_time(), global_position):
+		die("dragon")
 
 # ----------------------------------------------------------------- drawing
 
@@ -170,7 +180,7 @@ const SPRITE_SCALE := 3.0
 func _draw() -> void:
 	var walking := state == State.ACTIVE and speed_now > 8.0
 	var frozen := state == State.ACTIVE and behavior == LampColors.C.BLUE
-	var bob := -absf(sin(_anim * 10.0)) * 3.0 if walking else sin(_anim * 3.0) * 0.8
+	var bob := -absf(sin(_anim * (14.0 if level.ogre_idx >= 0 else 10.0))) * 3.0 if walking else sin(_anim * 3.0) * 0.8
 	if behavior == LampColors.C.ORANGE and walking:
 		bob = -absf(sin(_anim * 4.0)) * 4.0   # tiptoeing
 	var off := Vector2.ZERO

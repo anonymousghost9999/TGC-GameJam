@@ -15,6 +15,9 @@ const COLS := 30
 const ROWS := 17
 const TIMED_PERIOD := 4.0   # each phase lasts half of this
 const DRAGON_RADIUS := 104.0
+const OGRE_SPEED := 200.0       # 2.5x the hero's walking speed (80 px/s)
+const OGRE_WAKE := 0.45         # a short, visible wake-up before he moves
+const OGRE_CATCH := 22.0
 const DRAGON_MAX_SPEED := 44.0   # faster than this near a dragon wakes it
 
 var data: Dictionary
@@ -22,6 +25,9 @@ var lamp_manager: LampManager
 var hazards := {}       # Vector2i -> char
 var walls := {}
 var dragons: Array[Vector2] = []
+var ogre_idx := -1              # which ogre is awake and chasing (-1: all asleep)
+var ogre_pos := Vector2.ZERO
+var ogre_t := 0.0
 var hero_start := Vector2.ZERO
 var npc_start := Vector2.ZERO
 var exit_pos := Vector2.ZERO
@@ -138,17 +144,34 @@ func hazard_at(p: Vector2) -> String:
 		"t", "u": return "spike" if timed_active(hazards[c]) else ""
 	return ""
 
-## A hero moving fast near a sleeping dragon wakes it.
-func stealth_violation(p: Vector2, speed: float) -> bool:
-	for d in dragons:
-		if p.distance_to(d) < DRAGON_RADIUS and speed > DRAGON_MAX_SPEED:
-			return true
-	return false
+## A hero moving fast near a sleeping dragon wakes it. Returns the dragon's index, or -1.
+func stealth_violation(p: Vector2, speed: float) -> int:
+	for i in dragons.size():
+		if p.distance_to(dragons[i]) < DRAGON_RADIUS and speed > DRAGON_MAX_SPEED:
+			return i
+	return -1
+
+## The woken ogre: he blinks awake (OGRE_WAKE seconds), then chases the hero at 3x his speed.
+func wake_ogre(i: int) -> void:
+	if ogre_idx >= 0:
+		return
+	ogre_idx = i
+	ogre_pos = dragons[i]
+	ogre_t = 0.0
+
+## Advances the chase; true once he has caught the hero.
+func step_ogre(delta: float, hero_pos: Vector2) -> bool:
+	ogre_t += delta
+	if ogre_t < OGRE_WAKE:
+		return false
+	ogre_pos = ogre_pos.move_toward(hero_pos, OGRE_SPEED * delta)
+	return ogre_pos.distance_to(hero_pos) < OGRE_CATCH
 
 func at_exit(p: Vector2) -> bool:
 	return exit_pos != Vector2.ZERO and p.distance_to(exit_pos) < 14.0
 
 func reset() -> void:
+	ogre_idx = -1
 	clock = 0.0
 	sprung.clear()
 

@@ -10,6 +10,9 @@ const LAMPS := preload("res://assets/sprites/lamps.png")
 const OGRE_RECT := Rect2(32, 64, 16, 16)        # Tiny Creatures #42: the ogre (10 per row)
 const LANTERN_RECT := Rect2(56, 3, 16, 22)      # the oil lamp's glass and flame (no stand)
 const STAND_RECT := Rect2(93, 27, 14, 14)       # a slim brass stand (the candle removed)
+const FIRE := preload("res://assets/sprites/fire.png")   # Color Optimist, CC-BY 3.0: 6 flame frames, 28x24 each
+const FIRE_FRAME := Vector2(28, 24)
+const FIRE_FRAMES := 6
 const CELL := 16
 const COLS := 12
 
@@ -54,3 +57,9 @@ static func draw_lantern(ci: CanvasItem, center: Vector2, k: float, glass := Col
 static func draw_stand(ci: CanvasItem, top: Vector2, k: float, mod := Color.WHITE) -> void:
 	var sz := STAND_RECT.size * k
 	ci.draw_texture_rect_region(LAMPS, Rect2(top.x - sz.x * 0.5, top.y, sz.x, sz.y), STAND_RECT, mod)
+
+## One flame (frame `f`, wraps), its bottom-centre at `base`, scaled `k` times.
+static func draw_flame(ci: CanvasItem, base: Vector2, k: float, f: int, mod := Color.WHITE) -> void:
+	var src := Rect2(Vector2(posmod(f, FIRE_FRAMES) * FIRE_FRAME.x, 0), FIRE_FRAME)
+	var sz := FIRE_FRAME * k
+	ci.draw_texture_rect_region(FIRE, Rect2(base - Vector2(sz.x * 0.5, sz.y), sz), src, mod)

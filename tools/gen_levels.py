@@ -92,7 +92,7 @@ add(id="l4", cards=["blue"], num=4, title="BLUE", glob=True, invert=False, exit_
 # ------------------------------------------------------------------ level 5: ORANGE
 g = Grid()
 g.put('D', 14, 6)                  # a sleeping dragon: wakes if he moves fast nearby
-g.rect('^', 23, 8, 24, 10)         # spikes in front of the exit
+g.rect('~', 23, 8, 24, 10)         # fire in front of the exit
 g.put('o', 20, 8)                  # orange lamp, beyond the dragon
 g.put('r', 20, 10)                 # red lamp, right below the lane
 g.put('H', 3, 8); g.put('N', 18, 9); g.put('X', 26, 8)
@@ -119,7 +119,7 @@ add(id="l6", cards=["invert"], num=6, title="INVERT", glob=True, invert=True, ex
 
 # ------------------------------------------------------------------ level 7: GLOBAL COLOURS
 g = Grid()
-g.rect('^', 12, 8, 18, 12)         # a spike field between the two green lamps
+g.rect('^', 12, 8, 18, 12); g.rect('~', 14, 9, 16, 11)   # a field of spikes, with fire in the middle, between the two green lamps
 g.rect('^', 1, 1, 6, 3); g.rect('^', 1, 13, 6, 15)   # more spikes: he must never be left without a lamp
 g.put('G', 8, 8)                   # green lamp A near the start (ON)
 g.put('o', 18, 4)                  # orange lamp above the spikes (nearer the exit than green A)
@@ -136,7 +136,7 @@ add(id="l7", cards=["linked"], num=7, title="GLOBAL COLOURS", glob=True, invert=
 g = Grid()
 g.rect('t', 6, 1, 6, 15)           # timed spike wall right after the start
 g.put('D', 17, 6)                  # sleeping dragon, lane below it
-g.rect('^', 25, 8, 26, 10)         # spike pit before the exit
+g.rect('~', 25, 8, 26, 10)         # fire pit before the exit
 g.put('B', 3, 5)                   # blue lamp ON: holds him at the start
 g.put('G', 10, 8)                  # green waypoint (ON; shares its state with the exit lamp)
 g.put('o', 23, 8)                  # orange lamp beyond the dragon
@@ -173,7 +173,7 @@ add(id="l9", num=9, title="THE DEEP HALLS", glob=True, invert=True, exit_on=True
 # when you press E. The exit is lit and he heads straight for the spikes: swap at once (the waypoint
 # lights, the exit goes dark), then swap back once he stands at the waypoint. Back too early: spikes.
 g = Grid()
-g.rect('^', 9, 7, 21, 12)          # a spike field in the middle
+g.rect('^', 9, 7, 21, 12); g.rect('~', 9, 9, 21, 10)   # a spike field in the middle, with a band of fire across it
 g.put('g', 14, 3)                  # green waypoint, OFF (the exit starts ON: a mixed pair)
 g.put('H', 3, 8); g.put('N', 17, 2); g.put('X', 27, 8)
 add(id="l10", cards=["swap"], num=10, title="SWAP", glob=True, invert=True, exit_on=True,
@@ -293,7 +293,7 @@ g = Grid()
 g.rect('u', 6, 1, 6, 15)           # the first beat
 g.rect('t', 12, 1, 12, 15); g.rect('u', 15, 1, 15, 15)   # Gerald's walls
 g.rect('u', 21, 1, 21, 7)          # the last beat, north of the spike field
-g.rect('^', 18, 9, 24, 15)         # spikes between the north-east green and the lock
+g.rect('^', 18, 9, 24, 15); g.rect('~', 18, 12, 24, 15)   # spikes (and fire at the bottom) between the north-east green and the lock
 g.rect('x', 2, 12, 4, 15); g.rect('x', 7, 1, 10, 3); g.rect('x', 7, 13, 10, 15)   # hidden traps for wanderers
 g.put('D', 14, 10)                 # Gerald, one last time
 g.put('R', 5, 8)                   # red, ON: pins him against the west wall at the start

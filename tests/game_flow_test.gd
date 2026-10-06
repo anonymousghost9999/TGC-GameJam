@@ -155,18 +155,18 @@ func run() -> void:
 	sched = null
 	check(await until(func(): return game._end_card_shown, 30.0), "the end card is shown")
 	check(game.gs == GameManager.GS.ENDING, "the game is on the ending screen")
-	await tap("interact")
-	check(await until(func(): return game._credits_running and game.hud.credits_visible(), 5.0), "E on the end card rolls the credits")
+	check(await until(func(): return game._credits_running and game.hud.credits_visible(), 10.0), "the credits roll by themselves right after the finale")
 	check("Kummathi Nikhith Reddy" in Dialogue.CREDITS and "Krithik Kambhampati" in Dialogue.CREDITS, "all five teammates are in the credits")
 	await until(func(): return false, 2.0)
-	check(game.gs == GameManager.GS.ENDING and game.hud.credits_visible(), "the credits keep rolling (the end-card timer does not cut them off)")
+	check(game.gs == GameManager.GS.ENDING and game.hud.credits_visible(), "the credits keep rolling")
 	var flawless := 0
 	for k in game.results:
 		if game.results[k].flawless:
 			flawless += 1
 	check(game.results.size() == 15, "all 15 levels are recorded in the results, including the final lock level")
 	print("levels cleared: %d, flawless: %d, total deaths: %d" % [game.results.size(), flawless, game.total_deaths])
-	# E on the end card goes back to the start (a fresh title screen)
+	# E (after the first few seconds of credits) goes back to the start (a fresh title screen)
+	await until(func(): return false, 3.0)
 	await tap("interact")
 	for i in 5:
 		await process_frame

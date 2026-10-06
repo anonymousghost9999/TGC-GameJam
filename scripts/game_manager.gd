@@ -42,6 +42,7 @@ var _awaiting_continue := false
 var _cards_shown := {}           # new-lamp cards already shown this session
 var _end_card_shown := false
 var _credits_running := false
+var _credits_start_ms := 0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -101,6 +102,7 @@ func _load_level(d: Dictionary) -> void:
 	hero.place(level.hero_start)
 	npc.place(level.npc_start)
 	hero.died.connect(_on_hero_died)
+	hero.ogre_woke.connect(_on_ogre_woke)
 	hero.reached_exit.connect(_on_hero_exit)
 	hero.behavior_changed.connect(_on_behavior)
 	lamp_manager.lamp_switched.connect(_on_lamp_switched)
@@ -292,10 +294,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				_retry()
 		GS.ENDING:
 			if _credits_running:
-				if confirm or event.is_action_pressed("restart") or event.is_action_pressed("pause"):
+				# ignore the first seconds: a player mashing E through the last dialogue must not skip the credits
+				if Time.get_ticks_msec() - _credits_start_ms > 4000 and (confirm or event.is_action_pressed("restart") or event.is_action_pressed("pause")):
 					_back_to_title()
-			elif _end_card_shown and (confirm or event.is_action_pressed("restart")):
-				_roll_credits()
+
 
 func _set_paused(on: bool) -> void:
 	get_tree().paused = on
@@ -405,6 +407,10 @@ func _npc_hazard_check() -> void:
 		_npc_hazard_noted = true
 		npc.say("Light feet.", 2.0)
 		hero.say("How are you not dying?!", 2.2)
+
+## The ogre's growl (a CC0 snarl from OpenGameArt, see CREDITS.md).
+func _on_ogre_woke() -> void:
+	audio.play("ogre_growl", 1.0, 0.0)
 
 func _on_hero_died(kind: String) -> void:
 	if gs != GS.PLAYING:
@@ -528,23 +534,20 @@ func _kill_success() -> void:
 		if results[k].flawless:
 			flawless += 1
 	hud.show_game_ui(false)
-	hud.show_overlay(
+	_end_card_shown = true   # the ending is reached: the credits roll straight away, starting with THE END
+	_roll_credits(
 		"[center][font_size=44]THE END[/font_size]\n\n" +
 		"The Demon Lord reclaimed his dungeon.\nThe lamps burned in his honour for a thousand years.\n\n" +
 		"The hero never did find Maribel.\n\n" +
-		"[color=gold]Flawless levels: %d / %d[/color]     Total deaths: %d\n\n" % [flawless, levels.size(), total_deaths] +
-		"Thanks for playing!   Press [color=gold]E[/color] for the credits[/center]")
-	_end_card_shown = true
-	var tok := _token
-	await _wait(20.0)   # nobody pressed anything: back to the title screen by itself
-	if tok == _token and gs == GS.ENDING and not _credits_running:
-		_back_to_title()
+		"[color=gold]Flawless levels: %d / %d[/color]     Total deaths: %d[/center]\n\n\n\n\n" % [flawless, levels.size(), total_deaths] +
+		Dialogue.CREDITS)
 
-## After the end card: the end credits, then back to the title screen.
-func _roll_credits() -> void:
+## The end credits (THE END, then the team and assets), then back to the title screen. E skips.
+func _roll_credits(text: String) -> void:
 	_credits_running = true
+	_credits_start_ms = Time.get_ticks_msec()
 	var tok := _token
-	await hud.show_credits(Dialogue.CREDITS, 34.0)
+	await hud.show_credits(text, 46.0)
 	if tok == _token and gs == GS.ENDING:
 		await _wait(2.0)
 		if tok == _token and gs == GS.ENDING:
