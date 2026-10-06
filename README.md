@@ -21,12 +21,16 @@ Design source of truth: [The_NPC_Job_Full_Game_Plan.md](The_NPC_Job_Full_Game_Pl
 
 The game is also built for the web. **Browsers block `index.html` opened straight from disk**, so serve the folder over HTTP:
 
-1. Get the web build: unzip `the-npc-job-web.zip` (the zip uploaded for the jam), or build it yourself (see
-   [Browser export](#browser-export-itchio) below). Either way you end up with a folder containing `index.html`, `index.js`,
+1. Get the web build. The repo already contains it in **`export/web/`** (the same files are zipped as `export/the-npc-job-web.zip`).
+   To rebuild it yourself, see [Browser export](#browser-export-itchio) below. The folder must contain `index.html`, `index.js`,
    `index.wasm` and `index.pck`.
-2. In that folder, start a local web server, for example: `python3 -m http.server 8000`
+2. Start a local web server **inside that folder**. From the repository root:
+   ```
+   cd export/web
+   python3 -m http.server 8000
+   ```
 3. Open **http://localhost:8000** in a current Chromium-based browser (Chrome, Edge, Brave) or Firefox, and **click the page once**
-   so the browser allows sound. Press **E** to start.
+   so the browser allows sound. Press **E** to start. Stop the server with **Ctrl+C**.
 
 It needs a keyboard (WASD, E, Q, H). On itch.io upload the zip as an **HTML** project (tick *This file will be played in the browser*,
 viewport 960 x 544, fullscreen button on). No server setup is needed there.
